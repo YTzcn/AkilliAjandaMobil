@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -47,9 +47,33 @@ const RegisterScreen = () => {
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Ekran boyutlarını dinamik olarak takip etmek için state değişkenleri
+  const [screenDimensions, setScreenDimensions] = useState({
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height
+  });
 
   // Responsive layout
-  const isTabletOrLarger = width >= TABLET_BREAKPOINT;
+  const isTabletOrLarger = screenDimensions.width >= TABLET_BREAKPOINT;
+  const isLandscape = screenDimensions.width > screenDimensions.height;
+  const showSidebar = isTabletOrLarger && isLandscape;
+
+  // Ekran boyutu değiştiğinde (rotasyon olduğunda) çalışacak fonksiyon
+  useEffect(() => {
+    const updateLayout = () => {
+      setScreenDimensions({
+        width: Dimensions.get('window').width,
+        height: Dimensions.get('window').height
+      });
+    };
+
+    // Dinleyiciyi ekle
+    const subscription = Dimensions.addEventListener('change', updateLayout);
+
+    // Component unmount olduğunda dinleyiciyi kaldır
+    return () => subscription.remove();
+  }, []);
 
   // Registration handler
   const handleRegister = () => {
@@ -69,14 +93,12 @@ const RegisterScreen = () => {
       return;
     }
     
-    setLoading(true);
+    // API çağrısı yapılmadan doğrudan doğrulama ekranına yönlendir
+    console.log('Kayıt bilgileri:', fullName, email, password);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Registering with:', fullName, email, password);
-      setLoading(false);
-      // Navigate to home screen or login on success
-    }, 1500);
+    // Doğrulama ekranına yönlendir
+    // @ts-ignore - Navigasyon tipini görmezden gel
+    navigation.navigate('VerifyEmail', { email: email });
   };
 
   // Sidebar item component
@@ -98,6 +120,13 @@ const RegisterScreen = () => {
     keyboardAvoiding: {
       flex: 1,
     },
+    mainContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: SIZES.padding,
+      paddingHorizontal: 10,
+    },
     scrollContainer: {
       flexGrow: 1,
       justifyContent: 'center',
@@ -115,6 +144,7 @@ const RegisterScreen = () => {
       shadowOpacity: 0.1,
       shadowRadius: 5,
       maxWidth: 1200,
+      flex: 1,
     },
     sidebarContainer: {
       backgroundColor: COLORS.primary,
@@ -166,35 +196,41 @@ const RegisterScreen = () => {
        justifyContent: 'center',
        alignItems: 'center',
        paddingHorizontal: SIZES.padding * 2,
+       flex: 1,
     },
     formScrollContainer: {
+      flex: 1,
       width: '100%',
-      height: '100%',
+      maxWidth: isTabletOrLarger ? 450 : '100%',
+      alignSelf: 'center',
     },
     formScrollContentContainer: {
       flexGrow: 1,
       paddingVertical: SIZES.padding,
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
+      paddingHorizontal: isTabletOrLarger ? Math.min(SIZES.padding, 12) : 0,
     },
     formContainer: {
       width: '100%',
-      maxWidth: isTabletOrLarger ? 450 : 400,
-      alignItems: 'flex-start',
+      maxWidth: isTabletOrLarger ? 400 : '100%',
       alignSelf: 'center',
+      alignItems: 'flex-start',
     },
     title: {
       ...FONTS.h1,
       color: COLORS.textDark,
-      marginBottom: isTabletOrLarger ? SIZES.margin * 1.2 : SIZES.margin / 2,
-      alignSelf: 'flex-start',
       fontSize: isTabletOrLarger ? 32 : 28,
+      marginBottom: SIZES.margin * 0.8,
+      width: '100%',
     },
     subtitle: {
       ...FONTS.body,
       color: COLORS.textMedium,
-      marginBottom: isTabletOrLarger ? SIZES.margin * 3 : SIZES.margin * 2.5,
-      alignSelf: 'flex-start',
-      fontSize: isTabletOrLarger ? 16 : 14,
-      lineHeight: isTabletOrLarger ? 24 : 20,
+      marginBottom: SIZES.margin * 2,
+      fontSize: isTabletOrLarger ? 16 : 15,
+      width: '100%',
     },
     label: {
       ...FONTS.small,
@@ -278,6 +314,7 @@ const RegisterScreen = () => {
     },
     buttonContainer: {
       width: '100%',
+      maxWidth: isTabletOrLarger ? 400 : '100%',
       borderRadius: SIZES.radius,
       elevation: 3,
       shadowColor: COLORS.primary,
@@ -286,6 +323,7 @@ const RegisterScreen = () => {
       shadowRadius: 4,
       marginBottom: SIZES.margin * 2,
       marginTop: isTabletOrLarger ? SIZES.margin : 0,
+      alignSelf: 'center',
     },
     registerButton: {
       flexDirection: 'row',
@@ -329,6 +367,13 @@ const RegisterScreen = () => {
       color: COLORS.primary,
       marginLeft: SIZES.margin,
     },
+    termsContainer: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: SIZES.margin * 2,
+      width: '100%',
+      maxWidth: isTabletOrLarger ? 400 : '100%',
+    },
   }), [isTabletOrLarger]);
 
   // Registration form content
@@ -338,6 +383,7 @@ const RegisterScreen = () => {
       showsVerticalScrollIndicator={false}
       bounces={false}
       contentContainerStyle={styles.formScrollContentContainer}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.formContainer}>
         <Text style={styles.title}>Hesap Oluştur</Text>
@@ -421,7 +467,7 @@ const RegisterScreen = () => {
         </View>
         
         {/* Terms Checkbox - Custom Implementation for all platforms */}
-        <View style={styles.checkboxContainer}>
+        <View style={styles.termsContainer}>
           <TouchableOpacity
             style={styles.customCheckbox}
             onPress={() => setAcceptTerms(!acceptTerms)}
@@ -450,22 +496,16 @@ const RegisterScreen = () => {
         <TouchableOpacity
           onPress={handleRegister}
           activeOpacity={0.9}
-          disabled={loading}
           style={styles.buttonContainer}
         >
           <View style={[
             styles.registerButton,
-            { backgroundColor: COLORS.primary },
-            { opacity: loading ? 0.5 : 1 },
+            { backgroundColor: COLORS.primary }
           ]}>
-            {loading ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <>
-                <LoginIcon width={20} height={20} color={COLORS.white} style={{ marginRight: 8 }} />
-                <Text style={styles.registerButtonText}>Kayıt Ol</Text>
-              </>
-            )}
+            <>
+              <LoginIcon width={20} height={20} color={COLORS.white} style={{ marginRight: 8 }} />
+              <Text style={styles.registerButtonText}>Kayıt Ol</Text>
+            </>
           </View>
         </TouchableOpacity>
         
@@ -528,12 +568,8 @@ const RegisterScreen = () => {
         style={styles.keyboardAvoiding}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {!isTabletOrLarger && (
+        <View style={styles.mainContainer}>
+          {!showSidebar && (
             <View style={styles.mobileHeader}>
               <AppIcon width={30} height={30} color={COLORS.primary} />
               <Text style={styles.mobileHeaderTitle}>Akıllı Ajanda</Text>
@@ -543,26 +579,27 @@ const RegisterScreen = () => {
           <View style={[
             styles.outerContainer, 
             {
-              flexDirection: isTabletOrLarger ? 'row' : 'column',
-              width: isTabletOrLarger ? width * 0.85 : width * 0.9,
-              height: isTabletOrLarger ? height * 0.75 : undefined,
-              maxHeight: isTabletOrLarger ? 700 : undefined,
-              minHeight: isTabletOrLarger ? 500 : undefined,
-              marginVertical: SIZES.padding,
+              flexDirection: showSidebar ? 'row' : 'column',
+              width: isTabletOrLarger ? Math.min(screenDimensions.width * 0.85, 900) : screenDimensions.width * 0.9,
+              height: showSidebar ? Math.min(screenDimensions.height * 0.85, 700) : undefined,
+              maxHeight: showSidebar ? 700 : undefined,
+              flex: 1,
             }
           ]}>
-            {isTabletOrLarger ? (
+            {showSidebar ? (
               <>
                 <View style={[
                   styles.sidebarContainer, 
                   {
-                    flex: isTabletOrLarger ? 1 : undefined,
-                    width: isTabletOrLarger ? undefined : '100%',
-                    paddingBottom: isTabletOrLarger ? SIZES.padding * 2 : SIZES.padding * 3,
-                    borderTopLeftRadius: isTabletOrLarger ? SIZES.radius * 2 : 0,
-                    borderTopRightRadius: isTabletOrLarger ? 0 : 0,
+                    flex: 0.8,
+                    minWidth: 220,
+                    maxWidth: 320,
+                    width: undefined,
+                    paddingBottom: SIZES.padding * 2,
+                    borderTopLeftRadius: SIZES.radius * 2,
+                    borderTopRightRadius: 0,
                     borderBottomLeftRadius: SIZES.radius * 2,
-                    borderBottomRightRadius: isTabletOrLarger ? 0 : SIZES.radius * 2,
+                    borderBottomRightRadius: 0,
                   }
                 ]}>
                   {renderSidebarContent()}
@@ -570,15 +607,15 @@ const RegisterScreen = () => {
                 <View style={[
                   styles.formSection, 
                   {
-                    flex: isTabletOrLarger ? 1.5 : undefined,
-                    width: isTabletOrLarger ? undefined : '100%',
-                    paddingTop: isTabletOrLarger ? SIZES.padding * 2 : SIZES.padding * 4,
-                    paddingBottom: isTabletOrLarger ? SIZES.padding * 2 : SIZES.padding * 4,
-                    paddingHorizontal: isTabletOrLarger ? SIZES.padding * 3 : SIZES.padding * 2,
-                    borderTopLeftRadius: isTabletOrLarger ? 0 : SIZES.radius * 2,
+                    flex: 1.2,
+                    width: undefined,
+                    paddingTop: SIZES.padding * 2,
+                    paddingBottom: SIZES.padding * 2,
+                    paddingHorizontal: Math.min(SIZES.padding * 3, 32),
+                    borderTopLeftRadius: 0,
                     borderTopRightRadius: SIZES.radius * 2,
-                    borderBottomLeftRadius: isTabletOrLarger ? 0 : 0,
-                    borderBottomRightRadius: isTabletOrLarger ? SIZES.radius * 2 : 0,
+                    borderBottomLeftRadius: 0,
+                    borderBottomRightRadius: SIZES.radius * 2,
                   }
                 ]}>
                   {renderFormContent()}
@@ -589,15 +626,15 @@ const RegisterScreen = () => {
                 <View style={[
                   styles.formSection, 
                   {
-                    flex: isTabletOrLarger ? 1.5 : undefined,
-                    width: isTabletOrLarger ? undefined : '100%',
-                    paddingTop: isTabletOrLarger ? SIZES.padding * 2 : SIZES.padding * 4,
-                    paddingBottom: isTabletOrLarger ? SIZES.padding * 2 : SIZES.padding * 4,
-                    paddingHorizontal: isTabletOrLarger ? SIZES.padding * 3 : SIZES.padding * 2,
-                    borderTopLeftRadius: isTabletOrLarger ? 0 : SIZES.radius * 2,
+                    flex: 1,
+                    width: '100%',
+                    paddingTop: SIZES.padding * 3,
+                    paddingBottom: SIZES.padding * 3,
+                    paddingHorizontal: SIZES.padding * 2,
+                    borderTopLeftRadius: SIZES.radius * 2,
                     borderTopRightRadius: SIZES.radius * 2,
-                    borderBottomLeftRadius: isTabletOrLarger ? 0 : 0,
-                    borderBottomRightRadius: isTabletOrLarger ? SIZES.radius * 2 : 0,
+                    borderBottomLeftRadius: SIZES.radius * 2,
+                    borderBottomRightRadius: SIZES.radius * 2,
                   }
                 ]}>
                   {renderFormContent()}
@@ -605,7 +642,7 @@ const RegisterScreen = () => {
               </>
             )}
           </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

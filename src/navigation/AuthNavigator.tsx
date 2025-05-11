@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
 import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
+import VerifyEmailScreen from '../screens/Auth/VerifyEmailScreen';
 import MainNavigator from './MainNavigator'; // Yeni drawer navigator
 
 // Root stack tipini tanımlama
@@ -28,6 +29,7 @@ const AuthNavigator = () => {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
     </AuthStack.Navigator>
   );
 };

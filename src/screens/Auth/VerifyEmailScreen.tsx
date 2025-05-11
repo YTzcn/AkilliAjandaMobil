@@ -1,11 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
@@ -15,44 +14,44 @@ import {
   ViewStyle,
 } from 'react-native';
 import { COLORS, FONTS, SIZES } from '../../styles/theme';
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-
-// Type for navigation prop
-type RootStackParamList = {
-  Login: undefined;
-  Register: undefined;
-  ForgotPassword: undefined;
-  Main: undefined;
-};
-
-type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList>;
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 
 // Import SVG icons
 import CalendarIcon from '../../assets/icons/calendar.svg';
 import CheckIcon from '../../assets/icons/check.svg';
 import NoteIcon from '../../assets/icons/note.svg';
-import LoginIcon from '../../assets/icons/login.svg';
-import VisibilityOnIcon from '../../assets/icons/visibility-on.svg';
-import VisibilityOffIcon from '../../assets/icons/visibility-off.svg';
+import SendIcon from '../../assets/icons/send.svg';
 import AppIcon from '../../assets/icons/app-icon.svg';
 
 const { width, height } = Dimensions.get('window');
 const TABLET_BREAKPOINT = 768;
 
-// SidebarItem'ın tip tanımını ekleyeceğim
+// SidebarItem'ın tip tanımı
 interface SidebarItemProps {
   IconComponent: React.FC<{width?: number; height?: number; color?: string; style?: any}>;
   text: string;
 }
 
-const LoginScreen = () => {
-  const navigation = useNavigation<LoginScreenNavigationProp>();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+// Route params için tip tanımlaması
+type VerifyEmailRouteParams = {
+  VerifyEmail: {
+    email: string;
+  };
+};
+
+const VerifyEmailScreen = () => {
+  const navigation = useNavigation();
+  const route = useRoute<RouteProp<VerifyEmailRouteParams, 'VerifyEmail'>>();
+  
+  const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  
+  // E-posta adresini route params'dan al, yoksa varsayılan değer kullan
+  const [email, setEmail] = useState(route.params?.email || 'user@example.com');
+  
+  // Input referanslarını oluşturuyoruz, böylece her bir rakam girildiğinde sonraki input'a geçebiliriz
+  const inputRefs = useRef<Array<TextInput | null>>([null, null, null, null, null, null]);
   
   // Ekran boyutlarını dinamik olarak takip etmek için state değişkenleri
   const [screenDimensions, setScreenDimensions] = useState({
@@ -81,24 +80,57 @@ const LoginScreen = () => {
     return () => subscription.remove();
   }, []);
 
-  const handleLogin = () => {
-    if (!email || !password) {
-      console.log('Email and password required');
+  // Kodu doğrulama işlemi
+  const handleVerifyCode = () => {
+    const code = verificationCode.join('');
+    if (code.length !== 6) {
+      console.log('Lütfen 6 haneli kodu eksiksiz girin');
       return;
     }
-    setLoading(true);
+    
+    // API çağrısı yapmadan doğrudan başarılı durumunu göster
+    console.log('Doğrulama kodu kontrol ediliyor:', code);
+    setSuccess(true);
+    
+    // Kısa bir süre başarılı ekranını gösterdikten sonra ana sayfaya yönlendir
     setTimeout(() => {
-      console.log('Logging in with:', email, password, 'Remember Me:', rememberMe);
-      setLoading(false);
-      // Navigate to Main screen after successful login
+      // @ts-ignore - Navigasyon tipini görmezden gel
       navigation.reset({
         index: 0,
         routes: [{ name: 'Main' }],
       });
-    }, 1500);
+    }, 1000);
+  };
+  
+  // Kod yeniden gönderme işlemi
+  const handleResendCode = () => {
+    console.log('Yeni doğrulama kodu gönderiliyor:', email);
+    // Burada kodu yeniden gönderme API çağrısı yapılabilir
   };
 
-  // Updated SidebarItem to handle both text and SVG components
+  // Kodun her bir karakteri için input değişim fonksiyonu
+  const handleCodeChange = (text: string, index: number) => {
+    if (/^\d*$/.test(text)) { // Sadece rakamları kabul et
+      // Yeni kod dizisini oluştur
+      const newVerificationCode = [...verificationCode];
+      newVerificationCode[index] = text;
+      setVerificationCode(newVerificationCode);
+      
+      // Eğer bir rakam girildiyse ve bu son input değilse, sonraki input'a geç
+      if (text !== '' && index < 5) {
+        inputRefs.current[index + 1]?.focus();
+      }
+    }
+  };
+  
+  // Backspace tuşu ile geriye gitme fonksiyonu
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && index > 0 && verificationCode[index] === '') {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  // Sidebar item component
   const SidebarItem = ({ IconComponent, text }: SidebarItemProps) => (
     <View style={styles.sidebarCard}>
       <TouchableOpacity style={styles.sidebarItem} activeOpacity={0.7}>
@@ -108,7 +140,13 @@ const LoginScreen = () => {
     </View>
   );
 
-  // Helper function to render the form content
+  // Navigation için tip tanımlaması
+  const navigateToLogin = () => {
+    // @ts-ignore - Navigasyon tipini görmezden gel
+    navigation.navigate('Login');
+  };
+
+  // Doğrulama form içeriği
   const renderFormContent = () => (
     <ScrollView 
       style={styles.formScrollContainer}
@@ -118,105 +156,86 @@ const LoginScreen = () => {
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.formContainer}>
-        <Text style={styles.title}>Giriş Yap</Text>
+        <Text style={styles.title}>E-posta Doğrulama</Text>
         <Text style={styles.subtitle}>
-          Ajandanıza erişmek için hesabınıza giriş yapın
+          {email} adresine gönderilen 6 haneli doğrulama kodunu giriniz
         </Text>
         
-        <Text style={styles.label}>E-posta Adresi</Text>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="ornek@email.com"
-            placeholderTextColor={COLORS.textLight}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-          />
-        </View>
-        
-        <View style={styles.passwordHeaderContainer}>
-          <Text style={styles.label}>Şifre</Text>
-          <TouchableOpacity
-            style={styles.forgotPasswordInline}
-            onPress={navigateToForgotPassword}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.forgotPasswordText}>Şifremi Unuttum</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={[styles.inputContainer, styles.passwordInputContainer]}>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor={COLORS.textLight}
-            secureTextEntry={!isPasswordVisible}
-            value={password}
-            onChangeText={setPassword}
-          />
-          <TouchableOpacity
-            style={styles.inputIconRight}
-            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-            activeOpacity={0.7}
-          >
-            {isPasswordVisible ? (
-              <VisibilityOffIcon width={SIZES.icon} height={SIZES.icon} color={COLORS.textMedium} />
-            ) : (
-              <VisibilityOnIcon width={SIZES.icon} height={SIZES.icon} color={COLORS.textMedium} />
-            )}
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.checkboxContainer}>
-          <TouchableOpacity
-            style={styles.customCheckbox}
-            onPress={() => setRememberMe(!rememberMe)}
-            activeOpacity={0.7}
-          >
-            {rememberMe ? (
-              <View style={styles.customCheckboxChecked}>
-                <CheckIcon width={14} height={14} color={COLORS.white} />
-              </View>
-            ) : (
-              <View style={styles.customCheckboxUnchecked} />
-            )}
-          </TouchableOpacity>
-          <Text style={styles.checkboxLabel}>Beni Hatırla</Text>
-        </View>
-        
-        <TouchableOpacity
-          onPress={handleLogin}
-          activeOpacity={0.9}
-          disabled={loading}
-          style={styles.buttonContainer}
-        >
-          <View style={[
-            styles.loginButton,
-            { backgroundColor: COLORS.primary },
-            { opacity: loading ? 0.5 : 1 },
-          ]}>
-            {loading ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <>
-                <LoginIcon width={20} height={20} color={COLORS.white} style={{ marginRight: 8 }} />
-                <Text style={styles.loginButtonText}>Giriş Yap</Text>
-              </>
-            )}
+        {success ? (
+          <View style={styles.successContainer}>
+            <View style={styles.successIconContainer}>
+              <CheckIcon width={24} height={24} color={COLORS.white} />
+            </View>
+            <Text style={styles.successTitle}>Doğrulama Başarılı!</Text>
+            <Text style={styles.successMessage}>
+              E-posta adresiniz başarıyla doğrulandı.
+              Ana sayfaya yönlendiriliyorsunuz...
+            </Text>
           </View>
-        </TouchableOpacity>
-        
-        {renderRegisterLink()}
+        ) : (
+          <>
+            <View style={styles.codeInputContainer}>
+              {verificationCode.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => {
+                    inputRefs.current[index] = ref;
+                  }}
+                  style={styles.codeInput}
+                  maxLength={1}
+                  keyboardType="numeric"
+                  value={digit}
+                  onChangeText={(text) => handleCodeChange(text, index)}
+                  onKeyPress={(e) => handleKeyPress(e, index)}
+                  autoFocus={index === 0}
+                  selectTextOnFocus
+                />
+              ))}
+            </View>
+            
+            <TouchableOpacity
+              onPress={handleVerifyCode}
+              activeOpacity={0.9}
+              style={styles.buttonContainer}
+            >
+              <View style={[
+                styles.verifyButton,
+                { backgroundColor: COLORS.primary }
+              ]}>
+                <>
+                  <CheckIcon width={20} height={20} color={COLORS.white} style={{ marginRight: 8 }} />
+                  <Text style={styles.verifyButtonText}>Doğrula</Text>
+                </>
+              </View>
+            </TouchableOpacity>
+            
+            <View style={styles.resendContainer}>
+              <Text style={styles.resendText}>Kod gelmedi mi? </Text>
+              <TouchableOpacity
+                onPress={handleResendCode}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.resendLink}>Yeniden Gönder</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity
+              onPress={navigateToLogin}
+              activeOpacity={0.7}
+              style={styles.loginLinkContainer}
+            >
+              <Text style={styles.loginLink}>← Giriş sayfasına dön</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </ScrollView>
   );
 
-  // Helper function to render the sidebar content
+  // Sidebar content
   const renderSidebarContent = () => (
     <>
       <View style={styles.sidebarHeader}>
-        {/* Restored SVG app icon with proper props */}
         <AppIcon width={30} height={30} color={COLORS.white} />
         <Text style={styles.sidebarTitle}>Akıllı Ajanda</Text>
       </View>
@@ -224,7 +243,6 @@ const LoginScreen = () => {
         Tüm etkinliklerinizi, görevlerinizi ve notlarınızı tek bir yerde organize edin.
       </Text>
       <View style={styles.sidebarMenu}>
-        {/* Restored all SVG sidebar icons with proper props */}
         <SidebarItem 
           IconComponent={() => <CalendarIcon width={20} height={20} color={COLORS.white} style={styles.sidebarIcon} />} 
           text="Etkinlikler" 
@@ -239,31 +257,6 @@ const LoginScreen = () => {
         />
       </View>
     </>
-  );
-
-  // Navigation için tip tanımlamasını ekleyelim
-  const navigateToRegister = () => {
-    // @ts-ignore - Navigasyon tipini görmezden gel
-    navigation.navigate('Register');
-  };
-
-  // Şifremi Unuttum yönlendirmesi
-  const navigateToForgotPassword = () => {
-    // @ts-ignore - Navigasyon tipini görmezden gel
-    navigation.navigate('ForgotPassword');
-  };
-
-  // Register Link
-  const renderRegisterLink = () => (
-    <View style={styles.registerContainer}>
-      <Text style={styles.registerText}>Hesabınız yok mu? </Text>
-      <TouchableOpacity
-        onPress={navigateToRegister}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.registerLink}>Kayıt Olun</Text>
-      </TouchableOpacity>
-    </View>
   );
 
   // Responsive stillerini useMemo içinde oluşturalım
@@ -299,13 +292,14 @@ const LoginScreen = () => {
       shadowOpacity: 0.1,
       shadowRadius: 5,
       maxWidth: 1200,
-      flex: 1,
+      flex: 1, // Dikey modda daha fazla alan kaplar
     },
     sidebarContainer: {
       backgroundColor: COLORS.primary,
       padding: SIZES.padding * 2,
       justifyContent: 'flex-start',
       paddingTop: SIZES.padding * 4,
+      flex: 1,
     },
     sidebarHeader: {
       flexDirection: 'row',
@@ -347,11 +341,11 @@ const LoginScreen = () => {
       fontSize: 16,
     },
     formSection: {
-       backgroundColor: COLORS.white,
-       justifyContent: 'center',
-       alignItems: 'center',
-       paddingHorizontal: SIZES.padding * 2,
-       flex: 1,
+      backgroundColor: COLORS.white,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: SIZES.padding * 2,
+      flex: 1,
     },
     formScrollContainer: {
       flex: 1,
@@ -387,89 +381,23 @@ const LoginScreen = () => {
       fontSize: isTabletOrLarger ? 16 : 15,
       width: '100%',
     },
-    label: {
-      ...FONTS.small,
-      color: COLORS.textDark,
-      fontWeight: '600',
-      marginBottom: SIZES.margin / 2,
-      alignSelf: 'flex-start',
-      fontSize: isTabletOrLarger ? 15 : 14,
-    },
-    inputContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      width: '100%',
-      height: isTabletOrLarger ? SIZES.inputHeight + 6 : SIZES.inputHeight,
-      backgroundColor: COLORS.inputBackground,
-      borderRadius: SIZES.radius,
-      borderWidth: 1,
-      borderColor: COLORS.border,
-      marginBottom: SIZES.margin * 1.2,
-      paddingHorizontal: SIZES.padding,
-    },
-    input: {
-      flex: 1,
-      ...FONTS.body,
-      color: COLORS.textDark,
-      fontSize: isTabletOrLarger ? 16 : 14,
-    },
-    inputIconRight: {
-      padding: SIZES.padding / 2,
-    },
-    passwordHeaderContainer: {
+    codeInputContainer: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
       width: '100%',
-      marginBottom: SIZES.margin / 2,
+      marginBottom: SIZES.margin * 3,
     },
-    forgotPasswordInline: {
-      paddingVertical: 4,
-    },
-    forgotPasswordText: {
-      ...FONTS.small,
+    codeInput: {
+      width: 42,
+      height: 50,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      borderRadius: SIZES.radius,
+      textAlign: 'center',
+      fontSize: 20,
+      fontWeight: 'bold',
+      backgroundColor: COLORS.inputBackground,
       color: COLORS.primary,
-      fontWeight: '600',
-      fontSize: isTabletOrLarger ? 14 : 13,
-    },
-    passwordInputContainer: {
-      marginBottom: SIZES.margin * 1.5,
-    },
-    checkboxContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: isTabletOrLarger ? SIZES.margin * 2.5 : SIZES.margin * 2,
-      alignSelf: 'flex-start',
-    },
-    customCheckbox: {
-      width: 22,
-      height: 22,
-      marginRight: SIZES.margin,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: 4,
-      borderWidth: 2,
-      borderColor: COLORS.primary,
-      backgroundColor: 'transparent',
-    },
-    customCheckboxChecked: {
-      width: '100%',
-      height: '100%',
-      backgroundColor: COLORS.primary,
-      borderRadius: 2,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    customCheckboxUnchecked: {
-      width: '100%',
-      height: '100%',
-      backgroundColor: 'transparent',
-      borderRadius: 2,
-    },
-    checkboxLabel: {
-      ...FONTS.body,
-      color: COLORS.textMedium,
-      fontSize: isTabletOrLarger ? 15 : 14,
     },
     buttonContainer: {
       width: '100%',
@@ -484,7 +412,7 @@ const LoginScreen = () => {
       marginTop: isTabletOrLarger ? SIZES.margin : 0,
       alignSelf: 'center',
     },
-    loginButton: {
+    verifyButton: {
       flexDirection: 'row',
       width: '100%',
       height: isTabletOrLarger ? SIZES.buttonHeight + 8 : SIZES.buttonHeight,
@@ -492,36 +420,38 @@ const LoginScreen = () => {
       alignItems: 'center',
       borderRadius: SIZES.radius,
     },
-    loginButtonText: {
+    verifyButtonText: {
       ...(FONTS.body || {}),
       color: COLORS.white,
       fontWeight: 'bold',
       fontSize: 16,
     },
-    registerContainer: {
+    resendContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      marginTop: SIZES.margin,
+      marginBottom: SIZES.margin * 2,
       width: '100%',
     },
-    registerText: {
+    resendText: {
       ...FONTS.body,
       color: COLORS.textMedium,
     },
-    registerLink: {
+    resendLink: {
       ...FONTS.body,
       color: COLORS.primary,
       fontWeight: 'bold',
     },
-    errorText: {
-      ...FONTS.error,
-      color: COLORS.error,
+    loginLinkContainer: {
+      alignItems: 'center',
       width: '100%',
-      textAlign: 'left',
-      marginTop: -SIZES.margin + 4,
-      marginBottom: SIZES.margin - 4,
-      paddingLeft: SIZES.padding,
+      marginTop: SIZES.margin,
+    },
+    loginLink: {
+      ...FONTS.body,
+      color: COLORS.primary,
+      fontWeight: 'bold',
+      fontSize: isTabletOrLarger ? 16 : 14,
     },
     mobileHeader: {
       flexDirection: 'row',
@@ -534,6 +464,37 @@ const LoginScreen = () => {
       ...FONTS.h2,
       color: COLORS.primary,
       marginLeft: SIZES.margin,
+    },
+    successContainer: {
+      width: '100%',
+      maxWidth: isTabletOrLarger ? 400 : '100%',
+      alignItems: 'center',
+      marginTop: SIZES.margin,
+      paddingHorizontal: isTabletOrLarger ? Math.min(SIZES.padding * 2, 24) : SIZES.padding,
+      alignSelf: 'center',
+    },
+    successIconContainer: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: COLORS.success,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: SIZES.margin * 1.5,
+    },
+    successTitle: {
+      ...FONTS.h2,
+      color: COLORS.textDark,
+      fontSize: isTabletOrLarger ? 24 : 20,
+      marginBottom: SIZES.margin,
+    },
+    successMessage: {
+      ...FONTS.body,
+      color: COLORS.textMedium,
+      textAlign: 'center',
+      marginBottom: SIZES.margin,
+      lineHeight: isTabletOrLarger ? 24 : 20,
+      maxWidth: isTabletOrLarger ? 380 : 330,
     },
   }), [isTabletOrLarger]);
 
@@ -624,4 +585,4 @@ const LoginScreen = () => {
   );
 };
 
-export default LoginScreen; 
+export default VerifyEmailScreen; 
