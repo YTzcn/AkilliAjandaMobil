@@ -12,9 +12,13 @@ import {
   ActivityIndicator,
   Dimensions,
   ViewStyle,
+  Alert,
 } from 'react-native';
 import { COLORS, FONTS, SIZES } from '../../styles/theme';
 import { useNavigation } from '@react-navigation/native';
+import AuthService from '../../services/AuthService';
+import ErrorMessage from '../../components/ErrorMessage';
+import { isValidEmail } from '../../utils/ValidationUtils';
 
 // Import SVG icons
 import CalendarIcon from '../../assets/icons/calendar.svg';
@@ -37,6 +41,7 @@ const ForgotPasswordScreen = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
   
   // Ekran boyutlarını dinamik olarak takip etmek için state değişkenleri
   const [screenDimensions, setScreenDimensions] = useState({
@@ -66,20 +71,39 @@ const ForgotPasswordScreen = () => {
   }, []);
 
   // Handle password reset link
-  const handleSendResetLink = () => {
+  const handleSendResetLink = async () => {
     if (!email) {
-      console.log('E-posta adresi zorunludur');
+      setError('E-posta adresi zorunludur');
+      return;
+    }
+
+    // E-posta validasyonu
+    if (!isValidEmail(email)) {
+      setError('Geçerli bir e-posta adresi giriniz.');
       return;
     }
     
-    setLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Şifre sıfırlama bağlantısı gönderiliyor:', email);
+    try {
+      setLoading(true);
+      setError('');
+      await AuthService.forgotPassword(email);
+      
+      // Başarılı
+      Alert.alert(
+        'Başarılı',
+        'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
+        [
+          {
+            text: 'Tamam',
+            onPress: () => navigation.goBack()
+          }
+        ]
+      );
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
       setLoading(false);
-      setSuccess(true);
-    }, 1500);
+    }
   };
 
   // Sidebar item component
@@ -113,6 +137,8 @@ const ForgotPasswordScreen = () => {
           Şifrenizi sıfırlamak için e-posta adresinizi girin
         </Text>
         
+        {error ? <ErrorMessage message={error} /> : null}
+
         {success ? (
           <View style={styles.successContainer}>
             <View style={styles.successIconContainer}>

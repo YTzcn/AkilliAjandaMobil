@@ -12,11 +12,16 @@ import {
   ActivityIndicator,
   Dimensions,
   ViewStyle,
+  Alert,
 } from 'react-native';
 // CheckBox kütüphanesini artık kullanmıyoruz
 // import CheckBox from '@react-native-community/checkbox';
 import { COLORS, FONTS, SIZES } from '../../styles/theme';
 import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import AuthService from '../../services/AuthService';
+import ErrorMessage from '../../components/ErrorMessage';
+import { isValidEmail, isValidName, isStrongPassword } from '../../utils/ValidationUtils';
 
 // Import SVG icons
 import CalendarIcon from '../../assets/icons/calendar.svg';
@@ -36,8 +41,20 @@ interface SidebarItemProps {
   text: string;
 }
 
+// Type for navigation prop
+type RootStackParamList = {
+  Login: undefined;
+  Register: undefined;
+  VerifyEmail: {
+    email: string;
+  };
+  Main: undefined;
+};
+
+type RegisterScreenNavigationProp = StackNavigationProp<RootStackParamList>;
+
 const RegisterScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<RegisterScreenNavigationProp>();
   // Form state variables
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -47,6 +64,7 @@ const RegisterScreen = () => {
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   
   // Ekran boyutlarını dinamik olarak takip etmek için state değişkenleri
   const [screenDimensions, setScreenDimensions] = useState({
@@ -75,30 +93,63 @@ const RegisterScreen = () => {
     return () => subscription.remove();
   }, []);
 
-  // Registration handler
-  const handleRegister = () => {
-    // Basic validation
+  const handleRegister = async () => {
+    // Validation
     if (!fullName || !email || !password || !confirmPassword) {
-      console.log('Tüm alanlar zorunludur');
+      setError('Tüm alanlar zorunludur.');
+      return;
+    }
+
+    // Ad soyad validasyonu
+    const nameValidation = isValidName(fullName);
+    if (!nameValidation.isValid) {
+      setError(nameValidation.message);
+      return;
+    }
+
+    // E-posta validasyonu
+    if (!isValidEmail(email)) {
+      setError('Geçerli bir e-posta adresi giriniz.');
+      return;
+    }
+
+    // Şifre validasyonu
+    const passwordValidation = isStrongPassword(password);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.message);
       return;
     }
     
     if (password !== confirmPassword) {
-      console.log('Şifreler eşleşmiyor');
+      setError('Şifreler eşleşmiyor.');
       return;
     }
     
     if (!acceptTerms) {
-      console.log('Kullanım şartlarını kabul etmelisiniz');
+      setError('Kullanım şartlarını kabul etmelisiniz.');
       return;
     }
-    
-    // API çağrısı yapılmadan doğrudan doğrulama ekranına yönlendir
-    console.log('Kayıt bilgileri:', fullName, email, password);
-    
-    // Doğrulama ekranına yönlendir
-    // @ts-ignore - Navigasyon tipini görmezden gel
-    navigation.navigate('VerifyEmail', { email: email });
+
+    try {
+      setLoading(true);
+      setError('');
+      const response = await AuthService.register({
+        name: fullName,
+        email,
+        password,
+        password_confirmation: confirmPassword
+      });
+
+      // Başarılı kayıt
+      if (response.token) {
+        // Doğrulama ekranına yönlendir
+        navigation.navigate('VerifyEmail', { email: email });
+      }
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Sidebar item component
@@ -390,6 +441,8 @@ const RegisterScreen = () => {
         <Text style={styles.subtitle}>
           Ajandanızı yönetmek için ücretsiz hesap oluşturun
         </Text>
+        
+        {error ? <ErrorMessage message={error} /> : null}
         
         {/* Full Name Input */}
         <Text style={styles.label}>Ad Soyad</Text>

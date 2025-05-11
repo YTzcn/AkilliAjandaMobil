@@ -13,10 +13,14 @@ import {
   ActivityIndicator,
   Dimensions,
   ViewStyle,
+  Alert,
 } from 'react-native';
 import { COLORS, FONTS, SIZES } from '../../styles/theme';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import AuthService from '../../services/AuthService';
+import ErrorMessage from '../../components/ErrorMessage';
+import { isValidEmail } from '../../utils/ValidationUtils';
 
 // Type for navigation prop
 type RootStackParamList = {
@@ -53,6 +57,7 @@ const LoginScreen = () => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   
   // Ekran boyutlarını dinamik olarak takip etmek için state değişkenleri
   const [screenDimensions, setScreenDimensions] = useState({
@@ -81,21 +86,39 @@ const LoginScreen = () => {
     return () => subscription.remove();
   }, []);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
-      console.log('Email and password required');
+      setError('E-posta ve şifre alanları zorunludur.');
       return;
     }
-    setLoading(true);
-    setTimeout(() => {
-      console.log('Logging in with:', email, password, 'Remember Me:', rememberMe);
-      setLoading(false);
-      // Navigate to Main screen after successful login
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
+
+    // E-posta validasyonu
+    if (!isValidEmail(email)) {
+      setError('Geçerli bir e-posta adresi giriniz.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const response = await AuthService.login({
+        email,
+        password
       });
-    }, 1500);
+
+      // Başarılı giriş
+      if (response.token) {
+        // Ana ekrana yönlendir
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      }
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Updated SidebarItem to handle both text and SVG components
@@ -122,6 +145,8 @@ const LoginScreen = () => {
         <Text style={styles.subtitle}>
           Ajandanıza erişmek için hesabınıza giriş yapın
         </Text>
+        
+        {error ? <ErrorMessage message={error} /> : null}
         
         <Text style={styles.label}>E-posta Adresi</Text>
         <View style={styles.inputContainer}>

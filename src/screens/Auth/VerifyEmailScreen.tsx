@@ -12,9 +12,13 @@ import {
   ActivityIndicator,
   Dimensions,
   ViewStyle,
+  Alert,
 } from 'react-native';
 import { COLORS, FONTS, SIZES } from '../../styles/theme';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import AuthService from '../../services/AuthService';
+import ErrorMessage from '../../components/ErrorMessage';
+import { isValidVerificationCode } from '../../utils/ValidationUtils';
 
 // Import SVG icons
 import CalendarIcon from '../../assets/icons/calendar.svg';
@@ -46,6 +50,7 @@ const VerifyEmailScreen = () => {
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
   
   // E-posta adresini route params'dan al, yoksa varsayılan değer kullan
   const [email, setEmail] = useState(route.params?.email || 'user@example.com');
@@ -81,31 +86,48 @@ const VerifyEmailScreen = () => {
   }, []);
 
   // Kodu doğrulama işlemi
-  const handleVerifyCode = () => {
+  const handleVerifyCode = async () => {
     const code = verificationCode.join('');
-    if (code.length !== 6) {
-      console.log('Lütfen 6 haneli kodu eksiksiz girin');
+    
+    // Doğrulama kodu validasyonu
+    const codeValidation = isValidVerificationCode(code);
+    if (!codeValidation.isValid) {
+      setError(codeValidation.message);
       return;
     }
-    
-    // API çağrısı yapmadan doğrudan başarılı durumunu göster
-    console.log('Doğrulama kodu kontrol ediliyor:', code);
-    setSuccess(true);
-    
-    // Kısa bir süre başarılı ekranını gösterdikten sonra ana sayfaya yönlendir
-    setTimeout(() => {
-      // @ts-ignore - Navigasyon tipini görmezden gel
+
+    try {
+      setLoading(true);
+      setError('');
+      await AuthService.verifyEmail({
+        email: route.params.email,
+        code: code
+      });
+
+      // Başarılı doğrulama
       navigation.reset({
         index: 0,
         routes: [{ name: 'Main' }],
       });
-    }, 1000);
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
   
-  // Kod yeniden gönderme işlemi
-  const handleResendCode = () => {
-    console.log('Yeni doğrulama kodu gönderiliyor:', email);
-    // Burada kodu yeniden gönderme API çağrısı yapılabilir
+  // Kodu yeniden gönderme işlemi
+  const handleResendCode = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      await AuthService.resendVerification(route.params.email);
+      Alert.alert('Başarılı', 'Yeni doğrulama kodu e-posta adresinize gönderildi.');
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Kodun her bir karakteri için input değişim fonksiyonu
@@ -160,6 +182,8 @@ const VerifyEmailScreen = () => {
         <Text style={styles.subtitle}>
           {email} adresine gönderilen 6 haneli doğrulama kodunu giriniz
         </Text>
+        
+        {error ? <ErrorMessage message={error} /> : null}
         
         {success ? (
           <View style={styles.successContainer}>

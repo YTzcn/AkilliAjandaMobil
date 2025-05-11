@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,17 @@ import {
   Dimensions,
   Image,
   Alert,
+  ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { COLORS, FONTS, SIZES } from '../../styles/theme';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { MainDrawerParamList } from '../../navigation/MainNavigator'; // Navigator dosya yolunu kontrol et
 import { useNavigation } from '@react-navigation/native';
+import AuthStore, { User } from '../../store/AuthStore'; // AuthStore ve User import edildi
+import AuthService from '../../services/AuthService'; // AuthService import edildi
+import { isValidEmail, isStrongPassword } from '../../utils/ValidationUtils'; // Validasyonlar import edildi
+import GoogleCalendarService from '../../services/GoogleCalendarService';
 
 // Gerekli ikonları import edelim (varsayılan olarak placeholder, sonra değiştireceğiz)
 // import KaydetIcon from '../../assets/icons/save.svg';
@@ -34,52 +40,225 @@ const ProfileScreen = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
 
   // State'ler
-  const [adSoyad, setAdSoyad] = useState('Demo Kullanıcı');
-  const [email, setEmail] = useState('demo@example.com');
+  const [adSoyad, setAdSoyad] = useState('');
+  const [email, setEmail] = useState('');
   const [mevcutSifre, setMevcutSifre] = useState('');
   const [yeniSifre, setYeniSifre] = useState('');
   const [yeniSifreTekrar, setYeniSifreTekrar] = useState('');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Örnek kullanıcı verisi (sağ panel için)
-  const userSummary = {
-    name: 'Demo Kullanıcı',
-    email: 'demo@example.com',
-    avatarChar: 'D',
-    etkinlikler: 36,
-    gorevler: 14,
-    tamamlananGorevler: 1,
-  };
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loadingPassword, setLoadingPassword] = useState(false);
+  const [loadingDelete, setLoadingDelete] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [error, setError] = useState<string | null>(null); // Genel hata state'i
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
 
-  const handleKaydet = () => {
-    Alert.alert('Kaydedildi', 'Profil bilgileri güncellendi.');
-  };
+  // Kullanıcı bilgilerini AuthStore'dan çek
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await AuthStore.getUser();
+        if (user) {
+          setCurrentUser(user);
+          setAdSoyad(user.name);
+          setEmail(user.email);
+        }
+      } catch (err: any) {
+        console.error('Kullanıcı bilgileri alınırken hata:', err);
+        setError('Kullanıcı bilgileri alınamadı.');
+      }
+    };
+    fetchUser();
+  }, []);
 
-  const handleSifreGuncelle = () => {
-    if (yeniSifre !== yeniSifreTekrar) {
-      Alert.alert('Hata', 'Yeni şifreler eşleşmiyor.');
+  // Google bağlantı durumunu kontrol et
+  useEffect(() => {
+    const checkGoogleConnection = async () => {
+      try {
+        const googleService = GoogleCalendarService.getInstance();
+        const connected = await googleService.checkConnectionStatus();
+        setIsGoogleConnected(connected);
+      } catch (err) {
+        console.error('Google bağlantı kontrolü hatası:', err);
+      }
+    };
+    checkGoogleConnection();
+  }, []);
+
+  // Sağ panel için kullanıcı özeti
+  const userSummary = useMemo(() => {
+    if (!currentUser) {
+      return {
+        name: 'Kullanıcı Yükleniyor...',
+        email: '...',
+        avatarChar: '?',
+        etkinlikler: 0,
+        gorevler: 0,
+        tamamlananGorevler: 0,
+      };
+    }
+    return {
+      name: currentUser.name,
+      email: currentUser.email,
+      avatarChar: currentUser.name ? currentUser.name.charAt(0).toUpperCase() : '?',
+      // Bu değerler API'den veya başka bir yerden gelmeli, şimdilik sabit
+      etkinlikler: 36, 
+      gorevler: 14,
+      tamamlananGorevler: 1,
+    };
+  }, [currentUser]);
+
+  const handleKaydet = async () => {
+    setError(null);
+    if (!adSoyad.trim()) {
+      setError('Ad soyad boş bırakılamaz.');
       return;
     }
-    Alert.alert('Başarılı', 'Şifre güncellendi.');
+    // E-posta validasyonu (isteğe bağlı, eğer değiştirilebilir ise)
+    // if (email.trim() && !isValidEmail(email)) {
+    //   setError('Geçerli bir e-posta adresi giriniz.');
+    //   return;
+    // }
+
+    setLoadingProfile(true);
+    try {
+      const updateData: { name: string; email?: string } = { name: adSoyad };
+      // Eğer e-posta backend tarafından güncellenebiliyorsa ve değişmişse ekle
+      // if (currentUser && email !== currentUser.email) {
+      //   updateData.email = email;
+      // }
+      const response = await AuthService.updateProfile(updateData);
+      Alert.alert('Başarılı', 'Profil bilgileri güncellendi.');
+      if (response.user) {
+        setCurrentUser(response.user); // AuthStore'dan tekrar çekmek yerine yanıttan al
+      }
+    } catch (err: any) {
+      console.error('Profil güncelleme hatası:', err.message);
+      setError(err.message || 'Profil güncellenirken bir hata oluştu.');
+    } finally {
+      setLoadingProfile(false);
+    }
   };
 
-  const handleGoogleBaglan = () => {
-    Alert.alert('Google Entegrasyonu', 'Google ile bağlanma işlemi başlatıldı.');
+  const handleSifreGuncelle = async () => {
+    setError(null);
+    if (!mevcutSifre || !yeniSifre || !yeniSifreTekrar) {
+      setError('Tüm şifre alanları zorunludur.');
+      return;
+    }
+    if (yeniSifre !== yeniSifreTekrar) {
+      setError('Yeni şifreler eşleşmiyor.');
+      return;
+    }
+    const passwordValidation = isStrongPassword(yeniSifre);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.message);
+      return;
+    }
+
+    setLoadingPassword(true);
+    try {
+      await AuthService.changePassword({
+        current_password: mevcutSifre,
+        password: yeniSifre,
+        password_confirmation: yeniSifreTekrar,
+      });
+      Alert.alert('Başarılı', 'Şifre başarıyla güncellendi.');
+      setMevcutSifre('');
+      setYeniSifre('');
+      setYeniSifreTekrar('');
+    } catch (err: any) {
+      console.error('Şifre güncelleme hatası:', err.message);
+      setError(err.message || 'Şifre güncellenirken bir hata oluştu.');
+    } finally {
+      setLoadingPassword(false);
+    }
+  };
+
+  const handleGoogleBaglan = async () => {
+    setLoadingGoogle(true);
+    setError(null);
+    try {
+      const googleService = GoogleCalendarService.getInstance();
+      
+      // Google yetkilendirme URL'sini al
+      const authUrl = await googleService.getAuthUrl();
+      
+      // Web tarayıcısında aç
+      Linking.openURL(authUrl);
+      
+      // Kullanıcıyı bilgilendir
+      Alert.alert(
+        'Google Yetkilendirme',
+        'Google hesabınızla giriş yapmak için yönlendirileceksiniz. Giriş yaptıktan sonra uygulamamıza geri döneceksiniz.',
+        [{ text: 'Tamam' }]
+      );
+    } catch (err: any) {
+      console.error('Google bağlantı hatası:', err);
+      setError(err.message || 'Google bağlantısı sırasında bir hata oluştu.');
+    } finally {
+      setLoadingGoogle(false);
+    }
+  };
+
+  const handleGoogleDisconnect = async () => {
+    setLoadingGoogle(true);
+    setError(null);
+    try {
+      const googleService = GoogleCalendarService.getInstance();
+      await googleService.disconnect();
+      setIsGoogleConnected(false);
+      Alert.alert('Başarılı', 'Google Takvim bağlantısı kaldırıldı.');
+    } catch (err: any) {
+      console.error('Google bağlantısı kaldırma hatası:', err);
+      setError(err.message || 'Google bağlantısı kaldırılırken bir hata oluştu.');
+    } finally {
+      setLoadingGoogle(false);
+    }
   };
 
   const handleHesabiSil = () => {
+    setError(null);
     Alert.alert(
       'Hesabı Sil',
-      'Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+      'Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm verileriniz kalıcı olarak silinecektir.',
       [
         { text: 'İptal', style: 'cancel' },
-        { text: 'Sil', onPress: () => console.log('Hesap silindi'), style: 'destructive' },
+        {
+          text: 'Sil',
+          onPress: async () => {
+            console.log('[ProfileScreen] Hesap silme işlemi başlatıldı.');
+            setLoadingDelete(true);
+            setError(null); // Hata mesajını temizle
+            try {
+              await AuthService.deleteAccount();
+              await AuthStore.clearAll(); // AuthStore'u temizle
+              console.log('[ProfileScreen] Hesap başarıyla silindi (AuthService). AuthStore temizlendi.');
+              Alert.alert('Hesap Silindi', 'Hesabınız başarıyla silindi.');
+              
+              console.log("[ProfileScreen] Auth ekranına yönlendirme yapılıyor...");
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Auth' }],
+              });
+              console.log('[ProfileScreen] Yönlendirme komutu gönderildi.');
+            } catch (err: any) {
+              console.error('[ProfileScreen] Hesap silme veya yönlendirme hatası:', err.message, err);
+              setError(err.message || 'Hesap silinirken bir hata oluştu.');
+            } finally {
+              setLoadingDelete(false);
+              console.log('[ProfileScreen] Hesap silme işlemi tamamlandı (finally bloğu).');
+            }
+          },
+          style: 'destructive',
+        },
       ]
     );
   };
   
   const handleTakvimSenkronizasyonu = () => {
-    // Alert.alert('Takvim Senkronizasyonu', 'Takvim senkronizasyonu başlatıldı.');
-    navigation.navigate('CalendarSync'); // Yönlendirme eklendi
+    navigation.navigate('CalendarSync');
   };
 
   // Stil tanımlamaları
@@ -252,6 +431,17 @@ const ProfileScreen = () => {
     outlineButtonText: {
       color: COLORS.primary,
     },
+    errorText: {
+      ...FONTS.small,
+      color: COLORS.error,
+      textAlign: 'center',
+      marginBottom: SIZES.margin,
+    },
+    buttonInnerContainer: { // Buton içindeki yazı ve spinner için
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }
   }), []);
 
   return (
@@ -264,6 +454,8 @@ const ProfileScreen = () => {
           </TouchableOpacity> */}
           <Text style={styles.headerTitle}>Profil</Text>
         </View>
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
 
         <View style={styles.contentRow}>
           {/* Ana İçerik Bölümü */}
@@ -292,11 +484,16 @@ const ProfileScreen = () => {
                   placeholder="email@example.com"
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  editable={false}
                 />
               </View>
-              <TouchableOpacity style={styles.button} onPress={handleKaydet} activeOpacity={0.8}>
-                {/* <KaydetIcon width={20} height={20} color={COLORS.white} /> */}
-                <Text style={styles.buttonText}>Kaydet</Text>
+              <TouchableOpacity style={styles.button} onPress={handleKaydet} activeOpacity={0.8} disabled={loadingProfile}>
+                {loadingProfile ? (
+                  <ActivityIndicator color={COLORS.white} size="small" />
+                ) : (
+                  // <KaydetIcon width={20} height={20} color={COLORS.white} />
+                  <Text style={styles.buttonText}>Kaydet</Text>
+                )}
               </TouchableOpacity>
             </View>
 
@@ -336,9 +533,13 @@ const ProfileScreen = () => {
                   secureTextEntry
                 />
               </View>
-              <TouchableOpacity style={styles.button} onPress={handleSifreGuncelle} activeOpacity={0.8}>
-                {/* <SifreIcon width={20} height={20} color={COLORS.white} /> */}
-                <Text style={styles.buttonText}>Şifreyi Güncelle</Text>
+              <TouchableOpacity style={styles.button} onPress={handleSifreGuncelle} activeOpacity={0.8} disabled={loadingPassword}>
+                {loadingPassword ? (
+                  <ActivityIndicator color={COLORS.white} size="small" />
+                ) : (
+                  // <SifreIcon width={20} height={20} color={COLORS.white} />
+                  <Text style={styles.buttonText}>Şifreyi Güncelle</Text>
+                )}
               </TouchableOpacity>
             </View>
 
@@ -348,14 +549,48 @@ const ProfileScreen = () => {
               <Text style={styles.cardSubtitle}>
                 Google Takvim ile hesabınızı bağlayarak etkinliklerinizi senkronize edebilirsiniz.
               </Text>
-              <View style={styles.warningBox}>
-                {/* <WarningIcon width={20} height={20} color="#9F6000" /> */}
-                <Text style={styles.warningText}>Google Takvim hesabınız henüz bağlanmadı.</Text>
-              </View>
-              <TouchableOpacity style={styles.button} onPress={handleGoogleBaglan} activeOpacity={0.8}>
-                {/* <GoogleIcon width={20} height={20} color={COLORS.white} /> */}
-                <Text style={styles.buttonText}>Google ile Bağlan</Text>
-              </TouchableOpacity>
+              
+              {isGoogleConnected ? (
+                <>
+                  <View style={[styles.warningBox, { backgroundColor: '#E6F4EA' }]}>
+                    <Text style={[styles.warningText, { color: '#1E8E3E' }]}>
+                      Google Takvim hesabınız bağlı.
+                    </Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={[styles.button, { backgroundColor: COLORS.error }]} 
+                    onPress={handleGoogleDisconnect} 
+                    activeOpacity={0.8}
+                    disabled={loadingGoogle}
+                  >
+                    {loadingGoogle ? (
+                      <ActivityIndicator color={COLORS.white} size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>Bağlantıyı Kaldır</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <View style={styles.warningBox}>
+                    <Text style={styles.warningText}>
+                      Google Takvim hesabınız henüz bağlanmadı.
+                    </Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.button} 
+                    onPress={handleGoogleBaglan} 
+                    activeOpacity={0.8}
+                    disabled={loadingGoogle}
+                  >
+                    {loadingGoogle ? (
+                      <ActivityIndicator color={COLORS.white} size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>Google ile Bağlan</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
 
             {/* Hesabı Sil Kartı */}
@@ -365,9 +600,13 @@ const ProfileScreen = () => {
                 Hesabınız silindiğinde, tüm verileriniz ve kaynaklar kalıcı olarak silinecektir.
                 Hesabınızı silmeden önce saklamak istediğiniz verileri veya bilgileri indirin.
               </Text>
-              <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={handleHesabiSil} activeOpacity={0.8}>
-                {/* <DeleteIcon width={20} height={20} color={COLORS.white} /> */}
-                <Text style={styles.deleteButtonText}>Hesabı Sil</Text>
+              <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={handleHesabiSil} activeOpacity={0.8} disabled={loadingDelete}>
+                {loadingDelete ? (
+                  <ActivityIndicator color={COLORS.white} size="small" />
+                ) : (
+                  // <DeleteIcon width={20} height={20} color={COLORS.white} />
+                  <Text style={styles.deleteButtonText}>Hesabı Sil</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>

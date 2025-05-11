@@ -1,0 +1,2323 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "AkilliAjanda API Dokümantasyonu",
+        "description": "AkilliAjanda mobil uygulaması için API dokümantasyonu",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "",
+            "description": "API Sunucusu"
+        }
+    ],
+    "paths": {
+        "/api/register": {
+            "post": {
+                "tags": [
+                    "Kimlik Doğrulama"
+                ],
+                "summary": "Yeni kullanıcı kaydı",
+                "description": "Yeni bir kullanıcı hesabı oluşturur ve doğrulama kodu gönderir",
+                "operationId": "8e4e3cb7b46126f4696379d3c7eeb4ad",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarılı kayıt",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Kayıt başarılı. Lütfen e-posta adresinizi doğrulayın."
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abcdef123456..."
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validasyon hatası",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The given data was invalid."
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/login": {
+            "post": {
+                "tags": [
+                    "Kimlik Doğrulama"
+                ],
+                "summary": "Kullanıcı girişi",
+                "description": "E-posta ve şifre ile giriş yapar",
+                "operationId": "222b2625838e3c57e017987f73598fda",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarılı giriş",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|abcdef123456..."
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Kimlik doğrulama hatası",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "E-posta adresinizi doğrulamanız gerekmektedir."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/verify-email": {
+            "post": {
+                "tags": [
+                    "Kimlik Doğrulama"
+                ],
+                "summary": "E-posta doğrulama",
+                "description": "Gönderilen 6 haneli kod ile e-posta adresini doğrular",
+                "operationId": "fbc7adf060ede52efb0704bd0c64ffed",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "code"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    },
+                                    "code": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarılı doğrulama",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "E-posta adresi başarıyla doğrulandı."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz kod",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Geçersiz veya süresi dolmuş doğrulama kodu."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/resend-verification": {
+            "post": {
+                "tags": [
+                    "Kimlik Doğrulama"
+                ],
+                "summary": "Doğrulama kodunu yeniden gönder",
+                "description": "E-posta adresine yeni bir doğrulama kodu gönderir",
+                "operationId": "6a4e146c2d2dd433692f0eccb3da1c83",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Kod başarıyla gönderildi",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Doğrulama kodu yeniden gönderildi."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "E-posta adresi zaten doğrulanmış."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/forgot-password": {
+            "post": {
+                "tags": [
+                    "Kimlik Doğrulama"
+                ],
+                "summary": "Şifremi unuttum",
+                "description": "E-posta adresine şifre sıfırlama bağlantısı gönderir",
+                "operationId": "20d78161b19ac6afb56924e74974ec46",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Bağlantı gönderildi",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Şifre sıfırlama bağlantısı gönderildi."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/reset-password": {
+            "post": {
+                "tags": [
+                    "Kimlik Doğrulama"
+                ],
+                "summary": "Şifre sıfırlama",
+                "description": "Yeni şifre belirler",
+                "operationId": "0a6624b616e4ba5a310a61d9f7418c35",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "token",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "token": {
+                                        "type": "string",
+                                        "example": "abcdef123456..."
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword123"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Şifre başarıyla sıfırlandı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Şifre başarıyla sıfırlandı."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/change-password": {
+            "post": {
+                "tags": [
+                    "Kimlik Doğrulama"
+                ],
+                "summary": "Şifre değiştirme",
+                "description": "Mevcut şifreyi değiştirir",
+                "operationId": "88e8bff0f686a99070f87cdf1bac01e1",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "current_password",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "current_password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "oldpassword123"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword123"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Şifre başarıyla değiştirildi",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Şifre başarıyla değiştirildi."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Mevcut şifre yanlış."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/logout": {
+            "post": {
+                "tags": [
+                    "Kimlik Doğrulama"
+                ],
+                "summary": "Çıkış yap",
+                "description": "Mevcut oturumu sonlandırır",
+                "operationId": "ad65cbbd4e9f201619eae184a5961a98",
+                "responses": {
+                    "200": {
+                        "description": "Başarılı çıkış",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Başarıyla çıkış yapıldı."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/user": {
+            "get": {
+                "tags": [
+                    "Kimlik Doğrulama"
+                ],
+                "summary": "Kullanıcı bilgileri",
+                "description": "Giriş yapmış kullanıcının bilgilerini getirir",
+                "operationId": "961ad57987905b44ae2e2f40b82e76de",
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/chat/send": {
+            "post": {
+                "tags": [
+                    "Sohbet"
+                ],
+                "summary": "Yapay zeka asistanına mesaj gönder",
+                "description": "Kullanıcı mesajını işler ve yapay zeka asistanından yanıt döner",
+                "operationId": "c35932579d3a7f55db01a1c1c9a2a66d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "message"
+                                ],
+                                "properties": {
+                                    "message": {
+                                        "type": "string",
+                                        "example": "Merhaba, bugün için yapılacaklar listemi oluşturabilir misin?"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "response": {
+                                            "type": "string",
+                                            "example": "Merhaba! Tabii ki, işte sizin için bir yapılacaklar listesi önerisi..."
+                                        },
+                                        "type": {
+                                            "type": "string",
+                                            "example": "Yapay Zeka Asistan"
+                                        },
+                                        "is_successful": {
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Mesaj işlenirken bir hata oluştu"
+                                        },
+                                        "type": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "is_successful": {
+                                            "type": "boolean",
+                                            "example": false
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/events": {
+            "get": {
+                "tags": [
+                    "Etkinlikler"
+                ],
+                "summary": "Etkinlikleri listele",
+                "operationId": "e529c81e6aaec82f49950a87ed881f57",
+                "parameters": [
+                    {
+                        "name": "start",
+                        "in": "query",
+                        "description": "Başlangıç tarihi",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end",
+                        "in": "query",
+                        "description": "Bitiş tarihi",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Etkinlikler"
+                ],
+                "summary": "Yeni etkinlik oluştur",
+                "operationId": "e958e1c6c275d5f9b7ebcd837903d0ef",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CalendarEventRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "event": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/events/{event}": {
+            "get": {
+                "tags": [
+                    "Etkinlikler"
+                ],
+                "summary": "Etkinlik detaylarını getir",
+                "operationId": "2f5e4d4d8d7989ca1f72be9c20d9daac",
+                "parameters": [
+                    {
+                        "name": "event",
+                        "in": "path",
+                        "description": "Etkinlik ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Etkinlikler"
+                ],
+                "summary": "Etkinlik güncelle",
+                "operationId": "0c0cf4026635d252353fad3e5b48591c",
+                "parameters": [
+                    {
+                        "name": "event",
+                        "in": "path",
+                        "description": "Etkinlik ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CalendarEventRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "event": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Etkinlikler"
+                ],
+                "summary": "Etkinlik sil",
+                "operationId": "b9043fb311444b3c3bcb101e1a643a9f",
+                "parameters": [
+                    {
+                        "name": "event",
+                        "in": "path",
+                        "description": "Etkinlik ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/connection-status": {
+            "get": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Google Takvim bağlantı durumunu kontrol eder",
+                "description": "Kullanıcının Google Takvim bağlantı durumunu döner",
+                "operationId": "586280446c49e4cc5970e801ae309150",
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "connected": {
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/auth-url": {
+            "get": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Google yetkilendirme URL'sini döner",
+                "description": "Google Takvim entegrasyonu için yetkilendirme URL'sini döner",
+                "operationId": "d1debe67dc9910cd1ef99bbbe7e556e6",
+                "responses": {
+                    "200": {
+                        "description": "Yetkilendirme URL'si",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "auth_url": {
+                                            "type": "string",
+                                            "example": "https://accounts.google.com/o/oauth2/auth?..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google yetkilendirme başlatılamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/callback": {
+            "post": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Google'dan dönen yetkilendirme kodunu işler",
+                "description": "Google'dan dönen yetkilendirme kodunu kullanarak token alır ve kaydeder",
+                "operationId": "7a7d81df249d855be09c8e7d27ad8948",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "code"
+                                ],
+                                "properties": {
+                                    "code": {
+                                        "type": "string",
+                                        "example": "4/0AWgavde..."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google Takvim başarıyla bağlandı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Yetkilendirme kodu gereklidir"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google yetkilendirme tamamlanamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/disconnect": {
+            "post": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Google bağlantısını kaldırır",
+                "description": "Kullanıcının Google Takvim bağlantısını kaldırır",
+                "operationId": "184b891c0fb04a2376c04ac27b138a18",
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google Takvim bağlantısı kaldırıldı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google Takvim bağlantısı kaldırılamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/events": {
+            "get": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Google Takvimden etkinlikleri listeler",
+                "description": "Belirli tarih aralığındaki Google Takvim etkinliklerini listeler",
+                "operationId": "5947d673f84174f86aa4e54f59e8b25f",
+                "parameters": [
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Başlangıç tarihi (Y-m-d formatında)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2023-10-01"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Bitiş tarihi (Y-m-d formatında)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2023-10-31"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "events": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google Takvim bağlantısı bulunamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlikler listelenirken bir hata oluştu"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/import-events": {
+            "post": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Google Takvimden etkinlikleri içe aktarır",
+                "description": "Google Takvimden etkinlikleri belirli tarih aralığında içe aktarır",
+                "operationId": "62443835db614523b8ccab20b0faf5f8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "start_date",
+                                    "end_date"
+                                ],
+                                "properties": {
+                                    "start_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2023-10-01"
+                                    },
+                                    "end_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2023-10-31"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlikler başarıyla içe aktarıldı"
+                                        },
+                                        "imported_count": {
+                                            "type": "integer",
+                                            "example": 5
+                                        },
+                                        "events": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google Takvim bağlantısı bulunamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlikler içe aktarılırken bir hata oluştu"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/sync-event": {
+            "post": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Etkinliği Google Takvim'e senkronize eder",
+                "description": "Belirtilen etkinliği Google Takvim'e senkronize eder veya günceller",
+                "operationId": "7f9ed733192078ff06c45b60075976e7",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "event_id"
+                                ],
+                                "properties": {
+                                    "event_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlik başarıyla Google Takvim'e senkronize edildi"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google Takvim bağlantısı bulunamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Kaynak bulunamadı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlik bulunamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlik senkronize edilirken bir hata oluştu"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/remove-event/{event_id}": {
+            "delete": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Etkinliği Google Takvim'den kaldırır",
+                "description": "Belirtilen etkinliği Google Takvim'den kaldırır",
+                "operationId": "2f35aa872cd4b806fcc3a70a12ffb5d1",
+                "parameters": [
+                    {
+                        "name": "event_id",
+                        "in": "path",
+                        "description": "Etkinlik ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlik başarıyla Google Takvim'den kaldırıldı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google Takvim bağlantısı bulunamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Kaynak bulunamadı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlik bulunamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlik kaldırılırken bir hata oluştu"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/sync-all-events": {
+            "post": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Tüm etkinlikleri Google Takvim'e senkronize eder",
+                "description": "Kullanıcının tüm etkinliklerini Google Takvim'e senkronize eder",
+                "operationId": "30b294cedf539b6c98153296f2254344",
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlikler başarıyla senkronize edildi"
+                                        },
+                                        "synced_count": {
+                                            "type": "integer",
+                                            "example": 5
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google Takvim bağlantısı bulunamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Etkinlikler senkronize edilirken bir hata oluştu"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/google/sync-tasks": {
+            "post": {
+                "tags": [
+                    "Google Takvim"
+                ],
+                "summary": "Görevleri Google Görevler listesine senkronize eder",
+                "description": "Kullanıcının görevlerini Google Görevler listesine senkronize eder",
+                "operationId": "64cdd434af9b7443c2979d3e7c200b5b",
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Görevler başarıyla senkronize edildi"
+                                        },
+                                        "synced_count": {
+                                            "type": "integer",
+                                            "example": 5
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Geçersiz istek",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Google bağlantısı bulunamadı"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Hata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Görevler senkronize edilirken bir hata oluştu"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/tasks": {
+            "get": {
+                "tags": [
+                    "Görevler"
+                ],
+                "summary": "Tüm görevleri listeler",
+                "description": "Kullanıcıya ait tüm görevleri listeler. Takvim görünümü için start ve end parametreleri eklenebilir.",
+                "operationId": "getTasks",
+                "parameters": [
+                    {
+                        "name": "start",
+                        "in": "query",
+                        "description": "Başlangıç tarihi (YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end",
+                        "in": "query",
+                        "description": "Bitiş tarihi (YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Task"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Yetkilendirme hatası"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Görevler"
+                ],
+                "summary": "Yeni bir görev oluşturur",
+                "description": "Kullanıcı için yeni bir görev oluşturur",
+                "operationId": "createTask",
+                "requestBody": {
+                    "description": "Görev bilgileri",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "due_date"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "description": "Görev başlığı",
+                                        "type": "string",
+                                        "example": "Toplantı hazırlığı"
+                                    },
+                                    "description": {
+                                        "description": "Görev açıklaması",
+                                        "type": "string",
+                                        "example": "Haftalık toplantı için sunum hazırlığı"
+                                    },
+                                    "due_date": {
+                                        "description": "Son tarih",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2023-12-31 14:00:00"
+                                    },
+                                    "priority": {
+                                        "description": "Öncelik seviyesi (1: Düşük, 2: Orta, 3: Yüksek)",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "status": {
+                                        "description": "Durum (pending, in-progress, completed)",
+                                        "type": "string",
+                                        "example": "pending"
+                                    },
+                                    "is_completed": {
+                                        "description": "Tamamlanma durumu",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "category_ids": {
+                                        "description": "Kategori ID'leri",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Başarıyla oluşturuldu",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Görev başarıyla oluşturuldu."
+                                        },
+                                        "task": {
+                                            "$ref": "#/components/schemas/Task"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Doğrulama hatası",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Doğrulama hatası"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Yetkilendirme hatası"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/tasks/{task}": {
+            "get": {
+                "tags": [
+                    "Görevler"
+                ],
+                "summary": "Belirli bir görevi gösterir",
+                "description": "Belirli bir görevin detaylarını gösterir",
+                "operationId": "getTask",
+                "parameters": [
+                    {
+                        "name": "task",
+                        "in": "path",
+                        "description": "Görev ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarılı",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Task"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Görev bulunamadı"
+                    },
+                    "401": {
+                        "description": "Yetkilendirme hatası"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Görevler"
+                ],
+                "summary": "Bir görevi günceller",
+                "description": "Mevcut bir görevi günceller",
+                "operationId": "updateTask",
+                "parameters": [
+                    {
+                        "name": "task",
+                        "in": "path",
+                        "description": "Görev ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Görev bilgileri",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "due_date"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "description": "Görev başlığı",
+                                        "type": "string",
+                                        "example": "Toplantı hazırlığı (Güncellendi)"
+                                    },
+                                    "description": {
+                                        "description": "Görev açıklaması",
+                                        "type": "string",
+                                        "example": "Haftalık toplantı için sunum hazırlığı ve doküman dağıtımı"
+                                    },
+                                    "due_date": {
+                                        "description": "Son tarih",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2023-12-31 16:00:00"
+                                    },
+                                    "priority": {
+                                        "description": "Öncelik seviyesi (1: Düşük, 2: Orta, 3: Yüksek)",
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "status": {
+                                        "description": "Durum (pending, in-progress, completed)",
+                                        "type": "string",
+                                        "example": "in-progress"
+                                    },
+                                    "is_completed": {
+                                        "description": "Tamamlanma durumu",
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "category_ids": {
+                                        "description": "Kategori ID'leri",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            3
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Başarıyla güncellendi",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Görev başarıyla güncellendi."
+                                        },
+                                        "task": {
+                                            "$ref": "#/components/schemas/Task"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Görev bulunamadı"
+                    },
+                    "422": {
+                        "description": "Doğrulama hatası",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Doğrulama hatası"
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Yetkilendirme hatası"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Görevler"
+                ],
+                "summary": "Bir görevi siler",
+                "description": "Belirli bir görevi siler",
+                "operationId": "deleteTask",
+                "parameters": [
+                    {
+                        "name": "task",
+                        "in": "path",
+                        "description": "Görev ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Başarıyla silindi",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Görev başarıyla silindi."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Görev bulunamadı"
+                    },
+                    "401": {
+                        "description": "Yetkilendirme hatası"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "CalendarEventRequest": {
+                "title": "Takvim Etkinliği İsteği",
+                "description": "Takvim etkinliği oluşturma ve güncelleme için kullanılan form request",
+                "required": [
+                    "title",
+                    "start_date",
+                    "end_date"
+                ],
+                "properties": {
+                    "title": {
+                        "description": "Etkinlik başlığı",
+                        "type": "string",
+                        "maxLength": 255,
+                        "example": "Toplantı"
+                    },
+                    "description": {
+                        "description": "Etkinlik açıklaması",
+                        "type": "string",
+                        "example": "Haftalık ekip toplantısı",
+                        "nullable": true
+                    },
+                    "start_date": {
+                        "description": "Başlangıç tarihi ve saati",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-03-20T10:00:00"
+                    },
+                    "end_date": {
+                        "description": "Bitiş tarihi ve saati",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-03-20T11:00:00"
+                    },
+                    "all_day": {
+                        "description": "Tüm gün etkinliği mi?",
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "location": {
+                        "description": "Etkinlik konumu",
+                        "type": "string",
+                        "maxLength": 255,
+                        "example": "Toplantı Odası 1",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Task": {
+                "title": "Task",
+                "description": "Görev modeli",
+                "properties": {
+                    "id": {
+                        "description": "Görev ID",
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 1
+                    },
+                    "user_id": {
+                        "description": "Kullanıcı ID",
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 1
+                    },
+                    "title": {
+                        "description": "Görev başlığı",
+                        "type": "string",
+                        "example": "Toplantı hazırlığı"
+                    },
+                    "description": {
+                        "description": "Görev açıklaması",
+                        "type": "string",
+                        "example": "Haftalık toplantı için sunum hazırlığı"
+                    },
+                    "due_date": {
+                        "description": "Son tarih",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2023-12-31 14:00:00"
+                    },
+                    "status": {
+                        "description": "Görev durumu (pending, in-progress, completed)",
+                        "type": "string",
+                        "example": "pending"
+                    },
+                    "priority": {
+                        "description": "Öncelik seviyesi (1: Düşük, 2: Orta, 3: Yüksek)",
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "is_completed": {
+                        "description": "Tamamlanma durumu",
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "created_at": {
+                        "description": "Oluşturulma tarihi",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2023-01-01 12:00:00"
+                    },
+                    "updated_at": {
+                        "description": "Güncellenme tarihi",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2023-01-01 12:00:00"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Sohbet",
+            "description": "Yapay zeka sohbet asistanı işlemleri"
+        },
+        {
+            "name": "Etkinlikler",
+            "description": "Etkinlik yönetimi için API endpoint'leri"
+        },
+        {
+            "name": "Google Takvim",
+            "description": "Google Takvim entegrasyonu işlemleri"
+        },
+        {
+            "name": "Görevler",
+            "description": "Görev yönetimi ile ilgili API endpointleri"
+        },
+        {
+            "name": "Kimlik Doğrulama",
+            "description": "Kimlik Doğrulama"
+        }
+    ]
+}
