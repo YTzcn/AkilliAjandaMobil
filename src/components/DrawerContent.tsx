@@ -26,8 +26,8 @@ const DrawerContent = (props: any) => {
 
   // Örnek kullanıcı bilgisi - normalde API'den gelecek
   const user = {
-    name: 'Yahya Tezcan',
-    email: 'yahya@example.com',
+    name: 'Adile Nur Yiğit',
+    email: 'adilenurygt@gmail.com',
     avatar: 'https://via.placeholder.com/150',
   };
 
