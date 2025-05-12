@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // API URL'sini ortama göre ayarla
 export const BASE_URL = __DEV__ 
-  ? 'http:///192.168.37.126:8000' // Android Emulator için localhost
+  ? 'http:///10.196.178.149:8000' // Android Emulator için localhost
   : 'https://api.akilliajanda.com'; // Production URL
 
 // API istek zaman aşımı süresi (ms)

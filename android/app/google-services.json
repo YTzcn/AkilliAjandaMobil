@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "975843729349",
+    "project_id": "akilliajanda-ff6c6",
+    "storage_bucket": "akilliajanda-ff6c6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:975843729349:android:1e97a710bd58137a44b5ac",
+        "android_client_info": {
+          "package_name": "com.akilliajandamobil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBuIgPKvDcFgeMNdiATLclrmvDkaE4Yl_0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

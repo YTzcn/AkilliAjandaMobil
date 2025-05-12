@@ -1,9 +1,11 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import EventService, { CalendarEvent, CreateEventRequest } from '../services/EventService';
 import TaskService, { Task, CreateTaskRequest } from '../services/TaskService';
+import PusherService from '../services/PusherService';
 
 class CalendarStore {
   private static instance: CalendarStore;
+  private pusherService: PusherService;
   
   events: CalendarEvent[] = [];
   tasks: Task[] = [];
@@ -12,6 +14,7 @@ class CalendarStore {
 
   private constructor() {
     makeAutoObservable(this);
+    this.pusherService = PusherService.getInstance();
   }
 
   public static getInstance(): CalendarStore {
@@ -19,6 +22,40 @@ class CalendarStore {
       CalendarStore.instance = new CalendarStore();
     }
     return CalendarStore.instance;
+  }
+
+  async initialize() {
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    const initializePusher = async () => {
+      try {
+        await this.pusherService.initialize();
+        await this.pusherService.subscribeToCalendarUpdates(async () => {
+          console.log('[CalendarStore] Takvim güncellemesi alındı, veriler yenileniyor...');
+          await this.fetchEvents();
+          await this.fetchTasks();
+        });
+      } catch (error) {
+        console.error(`[CalendarStore] Pusher başlatma hatası (Deneme ${retryCount + 1}/${maxRetries}):`, error);
+        
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`[CalendarStore] Yeniden deneniyor (${retryCount}/${maxRetries})...`);
+          // 2 saniye bekle ve tekrar dene
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          await initializePusher();
+        } else {
+          console.error('[CalendarStore] Maksimum deneme sayısına ulaşıldı. Pusher başlatılamadı.');
+        }
+      }
+    };
+
+    await initializePusher();
+  }
+
+  async cleanup() {
+    await this.pusherService.disconnect();
   }
 
   // Etkinlik İşlemleri

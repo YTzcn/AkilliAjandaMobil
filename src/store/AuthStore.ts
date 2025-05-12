@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CalendarStore from './CalendarStore';
+import FirebaseService from '../services/FirebaseService';
 
 export interface User {
   id: number;
@@ -77,6 +79,21 @@ class AuthStore {
         authState.token ? this.setToken(authState.token) : this.clearToken(),
         authState.user ? this.setUser(authState.user) : this.clearUser()
       ]);
+
+      // Login başarılı olduğunda servisleri başlat
+      if (authState.token && authState.user) {
+        console.log('[AuthStore] Login başarılı, servisler başlatılıyor...');
+        
+        const [calendarStore, firebaseService] = [
+          CalendarStore.getInstance(),
+          FirebaseService.getInstance()
+        ];
+
+        await Promise.all([
+          calendarStore.initialize(),
+          firebaseService.initialize()
+        ]);
+      }
     } catch (error) {
       console.error('[AuthStore] Auth durumu kaydetme hatası:', error);
       throw new Error('Auth durumu kaydedilemedi');

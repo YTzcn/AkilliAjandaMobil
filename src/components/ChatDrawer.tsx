@@ -13,6 +13,10 @@ import {
   TouchableWithoutFeedback
 } from 'react-native';
 import { COLORS, FONTS, SIZES } from '../styles/theme';
+import axios from 'axios';
+import { getFullUrl } from '../config/api.config';
+import { handleApiError } from '../utils/NetworkUtils';
+import AuthStore from '../store/AuthStore';
 
 // SVG ikonları için import
 import SendIcon from '../assets/icons/send.svg';
@@ -42,6 +46,7 @@ const ChatDrawer: React.FC<ChatDrawerProps> = ({ isVisible, onClose }) => {
   const [dots, setDots] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
   const typingInterval = useRef<NodeJS.Timeout | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isVisible) {
@@ -95,8 +100,9 @@ const ChatDrawer: React.FC<ChatDrawerProps> = ({ isVisible, onClose }) => {
     );
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (message.trim()) {
+      setError(null);
       const newMessage: ChatMessage = {
         id: Date.now().toString(),
         text: message,
@@ -108,17 +114,54 @@ const ChatDrawer: React.FC<ChatDrawerProps> = ({ isVisible, onClose }) => {
       setMessage('');
       setIsTyping(true);
 
-      // Yapay zeka yanıtı
-      setTimeout(() => {
+      try {
+        const token = await AuthStore.getToken();
+        console.log('[ChatDrawer] Token:', token);
+        console.log('[ChatDrawer] İstek gönderiliyor:', {
+          url: getFullUrl('/api/chat/send'),
+          message: { message },
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+        });
+
+        const response = await axios.post(
+          getFullUrl('/api/chat/sendMessage '),
+          { message: message.trim() }, // message'ı trim edip öyle gönder
+          token ? { 
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            } 
+          } : undefined
+        );
+
+        console.log('[ChatDrawer] API Yanıtı:', response.data);
+        
         setIsTyping(false);
         const aiResponse: ChatMessage = {
           id: (Date.now() + 1).toString(),
-          text: 'Bugün, 11 Mayıs 2025 tarihinde, ajandanızda herhangi bir etkinlik veya görev planlanmamış. Gününüz boş görünüyor!',
+          text: response.data?.response || 'Yanıt alınamadı.',
           isUser: false,
           timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
         };
         setMessages(prev => [...prev, aiResponse]);
-      }, 2000);
+      } catch (err: any) {
+        console.error('[ChatDrawer] API Hatası:', {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message
+        });
+        
+        setIsTyping(false);
+        setError(handleApiError(err));
+        const aiResponse: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          text: handleApiError(err),
+          isUser: false,
+          timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, aiResponse]);
+      }
     }
   };
 
@@ -212,6 +255,12 @@ const ChatDrawer: React.FC<ChatDrawerProps> = ({ isVisible, onClose }) => {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+
+        {error && (
+          <View style={{ padding: 8, backgroundColor: '#ffeaea', borderRadius: 8, marginBottom: 8 }}>
+            <Text style={{ color: '#d32f2f', fontSize: 13 }}>{error}</Text>
+          </View>
+        )}
       </Animated.View>
     </>
   );
