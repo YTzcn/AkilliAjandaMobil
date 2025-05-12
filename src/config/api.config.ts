@@ -1,7 +1,30 @@
 import axios from 'axios';
 
-// API Temel URL'si
-export const BASE_URL = 'http://192.168.37.126:8000'; // Geliştirme ortamı için yerel IP
+// API URL'sini ortama göre ayarla
+export const BASE_URL = __DEV__ 
+  ? 'http:///192.168.37.126:8000' // Android Emulator için localhost
+  : 'https://api.akilliajanda.com'; // Production URL
+
+// API istek zaman aşımı süresi (ms)
+export const API_TIMEOUT = 30000;
+
+// API istekleri için varsayılan başlıklar
+export const DEFAULT_HEADERS = {
+  'Accept': 'application/json',
+  'Content-Type': 'application/json',
+};
+
+// API hata mesajları
+export const API_ERROR_MESSAGES = {
+  NETWORK_ERROR: 'İnternet bağlantınızı kontrol edin',
+  TIMEOUT_ERROR: 'İstek zaman aşımına uğradı',
+  SERVER_ERROR: 'Sunucu hatası oluştu',
+  UNAUTHORIZED: 'Oturum süreniz doldu',
+  FORBIDDEN: 'Bu işlem için yetkiniz yok',
+  NOT_FOUND: 'İstenilen kaynak bulunamadı',
+  VALIDATION_ERROR: 'Girdiğiniz bilgileri kontrol edin',
+  DEFAULT: 'Bir hata oluştu',
+};
 
 // Axios varsayılan yapılandırması
 axios.defaults.timeout = 10000; // 10 saniye

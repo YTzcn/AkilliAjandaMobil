@@ -4,16 +4,10 @@ import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import GoogleCalendarService from './services/GoogleCalendarService';
 import MainNavigator from './navigation/MainNavigator';
 
-const App = () => {
-  return (
-    <NavigationContainer>
-      <MainNavigator />
-    </NavigationContainer>
-  );
-};
+// Deep link handler bileşeni
+interface DeepLinkHandlerProps {}
 
-// Deep link handler'ı ayrı bir component'e taşıyalım
-const DeepLinkHandler = () => {
+const DeepLinkHandler: React.FC<DeepLinkHandlerProps> = () => {
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -61,6 +55,16 @@ const DeepLinkHandler = () => {
   }, [navigation]);
 
   return null;
+};
+
+// Ana uygulama bileşeni
+const App: React.FC = () => {
+  return (
+    <NavigationContainer>
+      <MainNavigator />
+      <DeepLinkHandler />
+    </NavigationContainer>
+  );
 };
 
 export default App; 

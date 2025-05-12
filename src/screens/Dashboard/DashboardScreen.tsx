@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,9 @@ import {
   TextInput,
   Switch,
   Pressable,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { COLORS, FONTS, SIZES } from '../../styles/theme';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -28,6 +30,10 @@ import { useNavigation } from '@react-navigation/native';
 import { MainDrawerParamList } from '../../navigation/MainNavigator';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import ChatDrawer from '../../components/ChatDrawer';
+import { observer } from 'mobx-react-lite';
+import CalendarStore from '../../store/CalendarStore';
+import { Task as TaskType, CreateTaskRequest } from '../../services/TaskService';
+import { CalendarEvent } from '../../services/EventService';
 
 // SVG ikonları için import
 import CalendarIcon from '../../assets/icons/calendar.svg';
@@ -49,18 +55,8 @@ moment.locale('tr');
 // Takvim için Türkçe lokalizasyon
 LocaleConfig.locales['tr'] = {
   monthNames: [
-    'Ocak',
-    'Şubat',
-    'Mart',
-    'Nisan',
-    'Mayıs',
-    'Haziran',
-    'Temmuz',
-    'Ağustos',
-    'Eylül',
-    'Ekim',
-    'Kasım',
-    'Aralık'
+    'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
   ],
   monthNamesShort: ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'],
   dayNames: ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'],
@@ -70,43 +66,24 @@ LocaleConfig.locales['tr'] = {
 LocaleConfig.defaultLocale = 'tr';
 
 // Etkinlik veri tipi
-interface Event {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  startTime: string; // 'HH:mm' formatında başlangıç saati
-  endTime: string;   // 'HH:mm' formatında bitiş saati
-  color?: string;    // Etkinlik rengi
+interface Event extends Omit<CalendarEvent, 'id'> {
+  id: number;
+  time?: string;
+  color?: string;
 }
 
 // Görev veri tipi
-interface Task {
-  id: string;
-  title: string;
-  dueDate: string;
-  priority: 'high' | 'medium' | 'low';
+interface Task extends Omit<TaskType, 'id' | 'priority'> {
+  id: number;
+  priority: 'low' | 'medium' | 'high';
+  dueDate?: string;
 }
 
-// Örnek veri
-const upcomingEvents: Event[] = [
-  { id: '1', title: 'Proje Teslimi', date: '2023-05-01', time: '12:00 - 13:00', location: 'Ev', startTime: '12:00', endTime: '13:00', color: COLORS.primary },
-  { id: '2', title: 'Müşteri Görüşmesi', date: '2023-05-01', time: '15:00 - 16:00', location: 'Ofis', startTime: '15:00', endTime: '16:00', color: '#4CAF50' },
-  { id: '3', title: 'Takım Toplantısı', date: '2023-05-01', time: '18:00 - 19:00', location: 'Ev', startTime: '18:00', endTime: '19:00', color: '#FF9800' },
-  { id: '4', title: 'Doktor Randevusu', date: '2023-05-03', time: '14:00 - 15:00', location: 'Hastane', startTime: '14:00', endTime: '15:00', color: '#2196F3' },
-  { id: '5', title: 'Proje Toplantısı', date: '2023-05-05', time: '10:00 - 11:30', location: 'Ofis', startTime: '10:00', endTime: '11:30', color: '#9C27B0' },
-  { id: '6', title: 'Spor Etkinliği', date: '2023-05-05', time: '18:00 - 19:30', location: 'Spor Salonu', startTime: '18:00', endTime: '19:30', color: '#F44336' },
-  { id: '7', title: 'Alışveriş', date: '2023-05-07', time: '14:00 - 16:00', location: 'AVM', startTime: '14:00', endTime: '16:00', color: '#607D8B' },
-];
+// Dashboard navigation prop tipi
+type DashboardScreenNavigationProp = DrawerNavigationProp<MainDrawerParamList, 'Dashboard'>;
 
-const pendingTasks: Task[] = [
-  { id: '1', title: 'DURUM deneme', dueDate: '26.04.2025', priority: 'low' },
-  { id: '2', title: 'Ödevi yap yeni', dueDate: '27.04.2025', priority: 'high' },
-  { id: '3', title: 'Ödevi yap', dueDate: '27.04.2025', priority: 'high' },
-  { id: '4', title: 'Ödevi yapmak', dueDate: '27.04.2025', priority: 'low' },
-  { id: '5', title: 'E-postaları Yanıtla', dueDate: '28.04.2025', priority: 'medium' },
-];
+// Tarih seçici tipi
+type DatePickerMode = 'date' | 'time';
 
 // Takvim için işaretli tarihler tipi
 interface MarkedDates {
@@ -119,13 +96,204 @@ interface MarkedDates {
   };
 }
 
-// Dashboard navigation prop tipi
-type DashboardScreenNavigationProp = DrawerNavigationProp<MainDrawerParamList, 'Dashboard'>;
+// EventCard bileşeni
+interface EventCardProps {
+  item: Event;
+  onPress?: (event: Event) => void;
+}
 
-// Tarih seçici tipi
-type DatePickerMode = 'date' | 'time';
+const EventCard: React.FC<EventCardProps> = ({ item, onPress }) => {
+  const handlePress = useCallback(() => {
+    onPress && onPress(item);
+  }, [item, onPress]);
 
-const DashboardScreen = () => {
+  return (
+    <TouchableOpacity
+      style={[styles.eventCard, { borderLeftColor: item.color || COLORS.primary }]}
+      onPress={handlePress}
+      activeOpacity={0.7}
+      accessible={true}
+      accessibilityLabel={`${item.title} etkinliği, ${moment(item.start_date).format('DD MMMM YYYY')} tarihinde ${moment(item.start_date).format('HH:mm')} - ${moment(item.end_date).format('HH:mm')} saatlerinde ${item.location || ''} konumunda`}
+    >
+      <View style={[styles.eventDateBox, { backgroundColor: item.color || COLORS.primary }]}>
+        <Text style={styles.eventMonth}>{moment(item.start_date).format('MMM')}</Text>
+        <Text style={styles.eventDay}>{moment(item.start_date).format('D')}</Text>
+      </View>
+      <View style={styles.eventDetails}>
+        <Text style={styles.eventTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
+        <View style={styles.eventInfoRow}>
+          <TimeIcon width={12} height={12} color={COLORS.textMedium} />
+          <Text style={styles.eventInfoText}>
+            {moment(item.start_date).format('HH:mm')} - {moment(item.end_date).format('HH:mm')}
+          </Text>
+        </View>
+        {item.location && (
+          <View style={styles.eventInfoRow}>
+            <LocationIcon width={12} height={12} color={COLORS.textMedium} />
+            <Text style={styles.eventInfoText}>{item.location}</Text>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// TaskCard bileşeni
+interface TaskCardProps {
+  item: Task;
+  onToggleCompletion?: (isCompleted: boolean) => void;
+}
+
+const TaskCard: React.FC<TaskCardProps> = ({ item, onToggleCompletion }) => {
+  const handleToggle = useCallback(() => {
+    onToggleCompletion && onToggleCompletion(!item.is_completed);
+  }, [item.is_completed, onToggleCompletion]);
+
+  // Öncelik düzeyine göre renk ve metin belirle
+  const getPriorityColor = () => {
+    switch (item.priority) {
+      case 'high': return '#F44336';
+      case 'medium': return '#FF9800';
+      case 'low': return '#4CAF50';
+      default: return COLORS.textMedium;
+    }
+  };
+  
+  const getPriorityText = () => {
+    switch (item.priority) {
+      case 'high': return 'Yüksek';
+      case 'medium': return 'Orta';
+      case 'low': return 'Düşük';
+      default: return 'Normal';
+    }
+  };
+  
+  return (
+    <TouchableOpacity 
+      style={styles.taskCard}
+      activeOpacity={0.7}
+      onPress={handleToggle}
+    >
+      <View style={[styles.taskPriorityIndicator, { backgroundColor: getPriorityColor() }]} />
+      <View style={styles.taskDetails}>
+        <Text style={styles.taskTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
+        <View style={styles.taskInfoRow}>
+          <Text style={styles.taskDueDate}>
+            Tarih: {moment(item.due_date).format('DD.MM.YYYY')}
+          </Text>
+          <View style={[styles.priorityBadge, { backgroundColor: `${getPriorityColor()}20` }]}>
+            <Text style={[styles.priorityText, { color: getPriorityColor() }]}>
+              {getPriorityText()}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+// TimeGrid bileşeni
+interface TimeGridProps {
+  date: string;
+  events: Event[];
+  onEventPress: (event: Event) => void;
+}
+
+const TimeGrid: React.FC<TimeGridProps> = ({ date, events, onEventPress }) => {
+  // Saat 08:00'den 20:00'ye kadar saat dilimleri
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    for (let hour = 8; hour <= 20; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    return slots;
+  }, []);
+
+  // Seçili güne ait etkinlikleri filtrele
+  const dayEvents = useMemo(() => {
+    return events.filter(event => 
+      moment(event.start_date).format('YYYY-MM-DD') === date
+    );
+  }, [date, events]);
+
+  // Etkinlik pozisyonlarını belirle
+  const getEventPosition = (event: Event) => {
+    const startHour = moment(event.start_date).hour();
+    const startMinute = moment(event.start_date).minute();
+    const endHour = moment(event.end_date).hour();
+    const endMinute = moment(event.end_date).minute();
+    
+    // Saat 8'den başlayan pozisyonu hesapla (her saat 60 birim)
+    const top = (startHour - 8) * 60 + startMinute;
+    // Dakika cinsinden süreyi hesapla
+    const duration = (endHour - startHour) * 60 + (endMinute - startMinute);
+    
+    return { top, height: duration };
+  };
+
+  return (
+    <View style={styles.timeGridContainer}>
+      {/* Saat göstergeleri sol sütun */}
+      <View style={styles.timeLabelsColumn}>
+        {timeSlots.map((time) => (
+          <View key={time} style={styles.timeLabel}>
+            <Text style={styles.timeLabelText}>{time}</Text>
+          </View>
+        ))}
+      </View>
+      
+      {/* Sağ tarafta zaman ızgarası ve etkinlikler */}
+      <ScrollView 
+        style={styles.timeGridScrollView}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.timeGridContent}>
+          {/* Arka plan çizgileri */}
+          {timeSlots.map((time, index) => (
+            <View key={time} style={[
+              styles.timeGridRow,
+              { top: index * 60 }
+            ]}>
+              <View style={styles.timeGridLine} />
+            </View>
+          ))}
+          
+          {/* Etkinlik blokları */}
+          {dayEvents.map((event) => {
+            const position = getEventPosition(event);
+            return (
+              <TouchableOpacity
+                key={event.id}
+                style={[
+                  styles.eventBlock,
+                  {
+                    top: position.top,
+                    height: Math.max(position.height, 30), // Minimum 30px yükseklik
+                    backgroundColor: event.color || COLORS.primary,
+                  }
+                ]}
+                onPress={() => onEventPress(event)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.eventBlockContent}>
+                  <Text style={styles.eventBlockTitle} numberOfLines={2}>
+                    {event.title}
+                  </Text>
+                  <Text style={styles.eventBlockTime}>
+                    {moment(event.start_date).format('HH:mm')} - {moment(event.end_date).format('HH:mm')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
+
+// DashboardScreen bileşeni
+const DashboardScreen: React.FC = observer(() => {
   const navigation = useNavigation<DashboardScreenNavigationProp>();
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
   const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
@@ -159,176 +327,144 @@ const DashboardScreen = () => {
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [showDueTimePicker, setShowDueTimePicker] = useState(false);
   
-  // Etkinlik ile ilgili işlemler
-  const handleEventPress = useCallback((event: Event) => {
-    console.log('Etkinlik tıklandı:', event);
-    // Burada etkinlik detay ekranına yönlendirme yapılabilir
-  }, []);
+  const calendarStore = useMemo(() => CalendarStore.getInstance(), []);
   
-  // Takvim için işaretli tarihler
-  const markedDates: MarkedDates = useMemo(() => {
-    const marked: MarkedDates = {};
-    
-    // Bugünün tarihini işaretle
-    const today = moment().format('YYYY-MM-DD');
-    marked[today] = { 
-      selected: today === selectedDate, 
-      selectedColor: COLORS.primary,
-      marked: true,
-      dotColor: COLORS.primary
-    };
-    
-    // Etkinliklerin tarihlerini işaretle
-    upcomingEvents.forEach(event => {
-      if (marked[event.date]) {
-        marked[event.date] = {
-          ...marked[event.date],
-          marked: true,
-          dotColor: COLORS.primary
-        };
-      } else {
-        marked[event.date] = { 
-          selected: event.date === selectedDate,
-          selectedColor: COLORS.primary,
-          marked: true, 
-          dotColor: COLORS.primary 
-        };
-      }
-    });
-    
-    // Seçili tarihi her zaman işaretle
-    if (!marked[selectedDate]) {
-      marked[selectedDate] = { 
-        selected: true, 
-        selectedColor: COLORS.primary 
-      };
-    } else {
-      marked[selectedDate] = { 
-        ...marked[selectedDate], 
-        selected: true, 
-        selectedColor: COLORS.primary 
-      };
+  // API'den veri çekme işlemleri
+  const fetchData = useCallback(async () => {
+    try {
+      const startDate = moment().startOf('month').format('YYYY-MM-DD');
+      const endDate = moment().endOf('month').format('YYYY-MM-DD');
+      
+      await Promise.all([
+        calendarStore.fetchEvents(startDate, endDate),
+        calendarStore.fetchTasks()
+      ]);
+    } catch (error) {
+      console.error('Veri çekme hatası:', error);
     }
-    
-    return marked;
-  }, [selectedDate, upcomingEvents]);
-  
-  // Seçili tarihe ait etkinlikler
-  const selectedDateEvents = useMemo(() => {
-    return upcomingEvents.filter(event => event.date === selectedDate);
-  }, [selectedDate]);
-  
-  // Seçili tarihin Türkçe formatı
-  const formattedSelectedDate = useMemo(() => {
-    return moment(selectedDate).format('D MMMM YYYY, dddd');
-  }, [selectedDate]);
-  
+  }, [calendarStore]);
+
+  // Sayfa yüklendiğinde verileri çek
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   // Yenileme işlemi
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Burada API çağrısı yapılabilir
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
-  }, []);
-  
-  // Tarih seçildiğinde
-  const onDayPress = useCallback((day: { dateString: string }) => {
-    setSelectedDate(day.dateString);
-  }, []);
-  
-  // Ay değiştiğinde
-  const onMonthChange = useCallback((month: { dateString: string }) => {
-    setCurrentMonth(month.dateString.substring(0, 7)); // YYYY-MM formatında
-  }, []);
-  
-  // Bugüne git
-  const goToToday = useCallback(() => {
-    const today = moment().format('YYYY-MM-DD');
-    setSelectedDate(today);
-    setCurrentMonth(moment().format('YYYY-MM'));
-  }, []);
-  
-  // Görünüm ayarı değiştir
-  const changeViewMode = useCallback((mode: 'month' | 'week' | 'day') => {
-    setViewMode(mode);
-  }, []);
-  
-  // Drawer'ı açma fonksiyonu
-  const openDrawer = useCallback(() => {
-    navigation.openDrawer();
-  }, [navigation]);
-  
-  // EventCard bileşeni
-  const EventCard = ({ item, onPress }: { item: Event, onPress?: (event: Event) => void }) => {
-    return (
-    <TouchableOpacity
-        style={[styles.eventCard, { borderLeftColor: item.color || COLORS.primary }]}
-        onPress={() => onPress && onPress(item)}
-      activeOpacity={0.7}
-      accessible={true}
-      accessibilityLabel={`${item.title} etkinliği, ${moment(item.date).format('DD MMMM YYYY')} tarihinde ${item.time} saatlerinde ${item.location} konumunda`}
-    >
-        <View style={[styles.eventDateBox, { backgroundColor: item.color || COLORS.primary }]}>
-        <Text style={styles.eventMonth}>{moment(item.date).format('MMM')}</Text>
-          <Text style={styles.eventDay}>{moment(item.date).format('D')}</Text>
-      </View>
-      <View style={styles.eventDetails}>
-        <Text style={styles.eventTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
-        <View style={styles.eventInfoRow}>
-            <TimeIcon width={12} height={12} color={COLORS.textMedium} />
-          <Text style={styles.eventInfoText}>{item.time}</Text>
-        </View>
-        <View style={styles.eventInfoRow}>
-            <LocationIcon width={12} height={12} color={COLORS.textMedium} />
-          <Text style={styles.eventInfoText}>{item.location}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-    );
-  };
-  
-  // Bir görev kartı bileşeni
-  const TaskCard = useCallback(({ item }: { item: Task }) => {
-    // Öncelik düzeyine göre renk ve metin belirle
-    const getPriorityColor = () => {
-      switch (item.priority) {
-        case 'high': return '#F44336';
-        case 'medium': return '#FF9800';
-        case 'low': return '#4CAF50';
-        default: return COLORS.textMedium;
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
+
+  // API'den gelen etkinlikleri formatla
+  const formattedEvents = useMemo(() => {
+    return calendarStore.events.map(event => ({
+      ...event,
+      time: `${moment(event.start_date).format('HH:mm')} - ${moment(event.end_date).format('HH:mm')}`,
+      color: COLORS.primary // Renk ataması için bir mantık eklenebilir
+    }));
+  }, [calendarStore.events]);
+
+  // API'den gelen görevleri formatla
+  const formattedTasks = useMemo(() => {
+    return calendarStore.tasks.map(task => {
+      let priority: 'low' | 'medium' | 'high';
+      switch (task.priority) {
+        case 1:
+          priority = 'low';
+          break;
+        case 2:
+          priority = 'medium';
+          break;
+        case 3:
+          priority = 'high';
+          break;
+        default:
+          priority = 'medium';
       }
-    };
-    
-    const getPriorityText = () => {
-      switch (item.priority) {
-        case 'high': return 'Yüksek';
-        case 'medium': return 'Orta';
-        case 'low': return 'Düşük';
-        default: return 'Normal';
-      }
-    };
-    
-    return (
-    <TouchableOpacity 
-      style={styles.taskCard}
-      activeOpacity={0.7}
-        onPress={() => console.log('Görev tıklandı:', item)}
-    >
-        <View style={[styles.taskPriorityIndicator, { backgroundColor: getPriorityColor() }]} />
-      <View style={styles.taskDetails}>
-        <Text style={styles.taskTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
-        <View style={styles.taskInfoRow}>
-            <Text style={styles.taskDueDate}>Tarih: {item.dueDate}</Text>
-            <View style={[styles.priorityBadge, { backgroundColor: `${getPriorityColor()}20` }]}>
-              <Text style={[styles.priorityText, { color: getPriorityColor() }]}>{getPriorityText()}</Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
+
+      return {
+        ...task,
+        priority,
+        dueDate: moment(task.due_date).format('DD.MM.YYYY')
+      };
+    });
+  }, [calendarStore.tasks]);
+
+  // Seçili tarihe ait etkinlikleri filtrele
+  const selectedDateEvents = useMemo(() => {
+    return formattedEvents.filter(event => 
+      moment(event.start_date).format('YYYY-MM-DD') === selectedDate
     );
+  }, [formattedEvents, selectedDate]);
+
+  // Etkinlik işlemleri
+  const handleEventPress = useCallback(async (event: Event) => {
+    // Etkinlik detay sayfasına yönlendirme yapılabilir
+    console.log('Etkinlik tıklandı:', event);
   }, []);
-  
+
+  // Yeni etkinlik oluşturma
+  const handleCreateEvent = useCallback(async () => {
+    if (!eventTitle) return;
+
+    try {
+      const newEvent = {
+        title: eventTitle,
+        description: eventDescription,
+        start_date: moment(eventStartDate, 'DD.MM.YYYY HH:mm').format('YYYY-MM-DD HH:mm:ss'),
+        end_date: moment(eventEndDate, 'DD.MM.YYYY HH:mm').format('YYYY-MM-DD HH:mm:ss'),
+        all_day: isAllDay,
+        location: eventLocation
+      };
+
+      await calendarStore.createEvent(newEvent);
+      handleCloseEventModal();
+      
+      // Başarı mesajı göster
+      Alert.alert('Başarılı', 'Etkinlik başarıyla oluşturuldu.');
+    } catch (error) {
+      console.error('Etkinlik oluşturma hatası:', error);
+      Alert.alert('Hata', 'Etkinlik oluşturulurken bir hata oluştu.');
+    }
+  }, [eventTitle, eventDescription, eventStartDate, eventEndDate, isAllDay, eventLocation, calendarStore]);
+
+  // Yeni görev oluşturma
+  const handleCreateTask = useCallback(async () => {
+    if (!taskTitle) return;
+
+    try {
+      const priority = taskPriority === 'low' ? 1 : taskPriority === 'medium' ? 2 : 3;
+      const newTask: CreateTaskRequest = {
+        title: taskTitle,
+        description: taskDescription,
+        due_date: moment(taskDueDate, 'DD.MM.YYYY HH:mm').format('YYYY-MM-DD HH:mm:ss'),
+        priority: priority as 1 | 2 | 3,
+        status: taskStatus.toLowerCase() as 'pending' | 'in-progress' | 'completed',
+        is_completed: taskStatus === 'Tamamlandı'
+      };
+
+      await calendarStore.createTask(newTask);
+      handleCloseTaskModal();
+      
+      // Başarı mesajı göster
+      Alert.alert('Başarılı', 'Görev başarıyla oluşturuldu.');
+    } catch (error) {
+      console.error('Görev oluşturma hatası:', error);
+      Alert.alert('Hata', 'Görev oluşturulurken bir hata oluştu.');
+    }
+  }, [taskTitle, taskDescription, taskDueDate, taskPriority, taskStatus, calendarStore]);
+
+  // Görev tamamlama durumunu güncelle
+  const handleToggleTaskCompletion = useCallback(async (taskId: number, isCompleted: boolean) => {
+    try {
+      await calendarStore.toggleTaskCompletion(taskId, isCompleted);
+    } catch (error) {
+      console.error('Görev durumu güncelleme hatası:', error);
+      Alert.alert('Hata', 'Görev durumu güncellenirken bir hata oluştu.');
+    }
+  }, [calendarStore]);
+
   // Takvim bileşeni
   const renderCalendar = () => {
     // Haftalık görünüm için
@@ -382,7 +518,7 @@ const DashboardScreen = () => {
           {/* TimeGrid bileşeni ile günlük görünümü haftalık içinde göster */}
           <TimeGrid 
             date={selectedDate} 
-            events={upcomingEvents} 
+            events={formattedEvents} 
             onEventPress={handleEventPress} 
           />
         </View>
@@ -400,7 +536,7 @@ const DashboardScreen = () => {
           {/* TimeGrid bileşeni ile günlük görünümü göster */}
           <TimeGrid 
             date={selectedDate} 
-            events={upcomingEvents} 
+            events={formattedEvents} 
             onEventPress={handleEventPress} 
           />
         </View>
@@ -410,74 +546,60 @@ const DashboardScreen = () => {
     // Aylık görünüm için (varsayılan)
     return (
       <View style={styles.monthView}>
-      <Calendar
-        current={selectedDate}
-        onDayPress={onDayPress}
-        onMonthChange={onMonthChange}
-        firstDay={1} // Pazartesi
-        markedDates={markedDates}
-        hideExtraDays={false}
-        disableMonthChange={false}
-        enableSwipeMonths={true}
-        hideArrows={false}
-        monthFormat={'MMMM yyyy'}
-        renderHeader={(date) => {
+        <Calendar
+          current={selectedDate}
+          onDayPress={(day) => setSelectedDate(day.dateString)}
+          onMonthChange={(month) => setCurrentMonth(month.dateString.substring(0, 7))}
+          firstDay={1}
+          markedDates={markedDates}
+          hideExtraDays={false}
+          disableMonthChange={false}
+          enableSwipeMonths={true}
+          hideArrows={false}
+          monthFormat={'MMMM yyyy'}
+          renderHeader={(date) => {
             const headerDate = moment(date.toString()).format('MMMM YYYY');
-          return (
-            <Text style={styles.calendarHeaderText}>
-              {headerDate.charAt(0).toUpperCase() + headerDate.slice(1)}
+            return (
+              <Text style={styles.calendarHeaderText}>
+                {headerDate.charAt(0).toUpperCase() + headerDate.slice(1)}
+              </Text>
+            );
+          }}
+          renderArrow={(direction) => (
+            <Text style={styles.calendarArrow}>
+              {direction === 'left' ? '←' : '→'}
             </Text>
-          );
-        }}
-        renderArrow={(direction) => (
-          <Text style={styles.calendarArrow}>
-            {direction === 'left' ? '←' : '→'}
-          </Text>
-        )}
-        theme={{
-          backgroundColor: COLORS.white,
-          calendarBackground: COLORS.white,
-          textSectionTitleColor: COLORS.textDark,
-          selectedDayBackgroundColor: COLORS.primary,
-          selectedDayTextColor: COLORS.white,
-          todayTextColor: COLORS.primary,
-          dayTextColor: COLORS.textDark,
-          textDisabledColor: COLORS.textLight,
-          arrowColor: COLORS.primary,
-          monthTextColor: COLORS.primary,
-          indicatorColor: COLORS.primary,
-          textDayFontSize: 16,
-          textMonthFontSize: 18,
-          textDayHeaderFontSize: 14
-        }}
-      />
+          )}
+          theme={{
+            backgroundColor: COLORS.white,
+            calendarBackground: COLORS.white,
+            textSectionTitleColor: COLORS.textDark,
+            selectedDayBackgroundColor: COLORS.primary,
+            selectedDayTextColor: COLORS.white,
+            todayTextColor: COLORS.primary,
+            dayTextColor: COLORS.textDark,
+            textDisabledColor: COLORS.textLight,
+            arrowColor: COLORS.primary,
+            monthTextColor: COLORS.primary,
+            indicatorColor: COLORS.primary,
+            textDayFontSize: 16,
+            textMonthFontSize: 18,
+            textDayHeaderFontSize: 14
+          }}
+        />
         
         {/* Seçili günün etkinliklerini hemen altında göster */}
         {selectedDateEvents.length > 0 ? (
           <View style={styles.selectedDateEventsContainer}>
             <Text style={styles.selectedDateTitle}>
-              {formattedSelectedDate} - Etkinlikler
+              {moment(selectedDate).format('D MMMM YYYY, dddd')}
             </Text>
             <FlatList
               data={selectedDateEvents}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  onPress={() => handleEventPress(item)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.monthEventItem, { borderLeftColor: item.color || COLORS.primary }]}>
-                    <View style={styles.monthEventTimeContainer}>
-                      <TimeIcon width={14} height={14} color={COLORS.textMedium} style={styles.monthEventIcon} />
-                      <Text style={styles.monthEventTime}>{item.time}</Text>
-                    </View>
-                    <Text style={styles.monthEventTitle}>{item.title}</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => <EventCard item={item} onPress={handleEventPress} />}
               showsVerticalScrollIndicator={false}
-              scrollEnabled={true}
-              style={styles.monthEventsScrollView}
+              scrollEnabled={false}
             />
           </View>
         ) : (
@@ -485,99 +607,6 @@ const DashboardScreen = () => {
             <Text style={styles.noEventsText}>Bu tarihte etkinlik bulunmuyor</Text>
           </View>
         )}
-      </View>
-    );
-  };
-
-  // Zaman aralıklarını oluşturan TimeGrid bileşeni
-  const TimeGrid = ({ date, events, onEventPress }: { date: string, events: Event[], onEventPress: (event: Event) => void }) => {
-    // Saat 08:00'den 20:00'ye kadar saat dilimleri
-    const timeSlots = useMemo(() => {
-      const slots = [];
-      for (let hour = 8; hour <= 20; hour++) {
-        slots.push(`${hour.toString().padStart(2, '0')}:00`);
-      }
-      return slots;
-    }, []);
-
-    // Seçili güne ait etkinlikleri filtrele
-    const dayEvents = useMemo(() => {
-      return events.filter(event => event.date === date);
-    }, [date, events]);
-
-    // Etkinlik pozisyonlarını belirle
-    const getEventPosition = (event: Event) => {
-      const startHour = parseInt(event.startTime.split(':')[0]);
-      const startMinute = parseInt(event.startTime.split(':')[1]);
-      const endHour = parseInt(event.endTime.split(':')[0]);
-      const endMinute = parseInt(event.endTime.split(':')[1]);
-      
-      // Saat 8'den başlayan pozisyonu hesapla (her saat 60 birim)
-      const top = (startHour - 8) * 60 + startMinute;
-      // Dakika cinsinden süreyi hesapla
-      const duration = (endHour - startHour) * 60 + (endMinute - startMinute);
-      
-      return { top, height: duration };
-    };
-
-    // Her saat dilimi için bir satır oluştur
-    return (
-      <View style={styles.timeGridContainer}>
-        {/* Saat göstergeleri sol sütun */}
-        <View style={styles.timeLabelsColumn}>
-          {timeSlots.map((time) => (
-            <View key={time} style={styles.timeLabel}>
-              <Text style={styles.timeLabelText}>{time}</Text>
-            </View>
-          ))}
-        </View>
-        
-        {/* Sağ tarafta zaman ızgarası ve etkinlikler */}
-        <ScrollView 
-          style={styles.timeGridScrollView}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.timeGridContent}>
-            {/* Arka plan çizgileri */}
-            {timeSlots.map((time, index) => (
-              <View key={time} style={[
-                styles.timeGridRow,
-                { top: index * 60 }
-              ]}>
-                <View style={styles.timeGridLine} />
-              </View>
-            ))}
-            
-            {/* Etkinlik blokları */}
-            {dayEvents.map((event) => {
-              const position = getEventPosition(event);
-              return (
-                <TouchableOpacity
-                  key={event.id}
-                  style={[
-                    styles.eventBlock,
-                    {
-                      top: position.top,
-                      height: Math.max(position.height, 30), // Minimum 30px yükseklik
-                      backgroundColor: event.color || COLORS.primary,
-                    }
-                  ]}
-                  onPress={() => onEventPress(event)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.eventBlockContent}>
-                    <Text style={styles.eventBlockTitle} numberOfLines={2}>
-                      {event.title}
-                    </Text>
-                    <Text style={styles.eventBlockTime}>
-                      {event.startTime} - {event.endTime}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
       </View>
     );
   };
@@ -793,23 +822,7 @@ const DashboardScreen = () => {
                   </View>
                 </ScrollView>
 
-                <View style={styles.modalFooter}>
-                  <TouchableOpacity 
-                    style={styles.cancelButton} 
-                    onPress={handleCloseEventModal}
-                  >
-                    <Text style={styles.cancelButtonText}>İptal</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.saveButton}
-                    onPress={() => {
-                      // Kaydetme işlemi
-                      handleCloseEventModal();
-                    }}
-                  >
-                    <Text style={styles.saveButtonText}>Kaydet</Text>
-                  </TouchableOpacity>
-                </View>
+                {renderEventModalFooter()}
 
                 {/* Tarih ve Saat Seçiciler */}
                 {showStartDatePicker && (
@@ -1025,23 +1038,7 @@ const DashboardScreen = () => {
                   </View>
                 </ScrollView>
 
-                <View style={styles.modalFooter}>
-                  <TouchableOpacity 
-                    style={styles.cancelButton} 
-                    onPress={handleCloseTaskModal}
-                  >
-                    <Text style={styles.cancelButtonText}>İptal</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.saveButton}
-                    onPress={() => {
-                      // Kaydetme işlemi
-                      handleCloseTaskModal();
-                    }}
-                  >
-                    <Text style={styles.saveButtonText}>Kaydet</Text>
-                  </TouchableOpacity>
-                </View>
+                {renderTaskModalFooter()}
 
                 {/* Tarih ve Saat Seçiciler */}
                 {showDueDatePicker && (
@@ -1069,6 +1066,107 @@ const DashboardScreen = () => {
   };
 
   const [isChatVisible, setIsChatVisible] = useState(false);
+
+  // Takvim için işaretli tarihler
+  const markedDates: MarkedDates = useMemo(() => {
+    const marked: MarkedDates = {};
+    
+    // Bugünün tarihini işaretle
+    const today = moment().format('YYYY-MM-DD');
+    marked[today] = { 
+      selected: today === selectedDate, 
+      selectedColor: COLORS.primary,
+      marked: true,
+      dotColor: COLORS.primary
+    };
+    
+    // Etkinliklerin tarihlerini işaretle
+    formattedEvents.forEach(event => {
+      const eventDate = moment(event.start_date).format('YYYY-MM-DD');
+      if (marked[eventDate]) {
+        marked[eventDate] = {
+          ...marked[eventDate],
+          marked: true,
+          dotColor: COLORS.primary
+        };
+      } else {
+        marked[eventDate] = { 
+          selected: eventDate === selectedDate,
+          selectedColor: COLORS.primary,
+          marked: true, 
+          dotColor: COLORS.primary 
+        };
+      }
+    });
+    
+    // Seçili tarihi her zaman işaretle
+    if (!marked[selectedDate]) {
+      marked[selectedDate] = { 
+        selected: true, 
+        selectedColor: COLORS.primary 
+      };
+    } else {
+      marked[selectedDate] = { 
+        ...marked[selectedDate], 
+        selected: true, 
+        selectedColor: COLORS.primary 
+      };
+    }
+    
+    return marked;
+  }, [selectedDate, formattedEvents]);
+
+  // Drawer'ı açma fonksiyonu
+  const openDrawer = useCallback(() => {
+    navigation.openDrawer();
+  }, [navigation]);
+
+  // Görünüm ayarı değiştir
+  const changeViewMode = useCallback((mode: 'month' | 'week' | 'day') => {
+    setViewMode(mode);
+  }, []);
+
+  // Bugüne git
+  const goToToday = useCallback(() => {
+    const today = moment().format('YYYY-MM-DD');
+    setSelectedDate(today);
+    setCurrentMonth(moment().format('YYYY-MM'));
+  }, []);
+
+  // Modal footer'ları
+  const renderEventModalFooter = () => (
+    <View style={styles.modalFooter}>
+      <TouchableOpacity 
+        style={styles.cancelButton} 
+        onPress={handleCloseEventModal}
+      >
+        <Text style={styles.cancelButtonText}>İptal</Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.saveButton}
+        onPress={handleCreateEvent}
+      >
+        <Text style={styles.saveButtonText}>Kaydet</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderTaskModalFooter = () => (
+    <View style={styles.modalFooter}>
+      <TouchableOpacity 
+        style={styles.cancelButton} 
+        onPress={handleCloseTaskModal}
+      >
+        <Text style={styles.cancelButtonText}>İptal</Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.saveButton}
+        onPress={handleCreateTask}
+      >
+        <Text style={styles.saveButtonText}>Kaydet</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -1168,15 +1266,27 @@ const DashboardScreen = () => {
           {viewMode === 'month' && selectedDateEvents.length > 0 && (
             <View style={styles.selectedDateEventsContainer}>
               <Text style={styles.selectedDateTitle}>
-                {formattedSelectedDate}
+                {moment(selectedDate).format('D MMMM YYYY, dddd')}
               </Text>
               <FlatList
                 data={selectedDateEvents}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => <EventCard item={item} onPress={handleEventPress} />}
                 showsVerticalScrollIndicator={false}
                 scrollEnabled={false}
               />
+            </View>
+          )}
+          
+          {calendarStore.loading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+          )}
+          
+          {calendarStore.error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{calendarStore.error}</Text>
             </View>
           )}
         </View>
@@ -1189,28 +1299,27 @@ const DashboardScreen = () => {
               <Text style={styles.sectionTitle}>Yaklaşan Etkinlikler</Text>
             </View>
             <View style={styles.sectionCountBadge}>
-              <Text style={styles.sectionCountText}>{upcomingEvents.length}</Text>
+              <Text style={styles.sectionCountText}>{formattedEvents.length}</Text>
             </View>
           </View>
           
-          <FlatList
-            data={upcomingEvents}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <EventCard item={item} onPress={handleEventPress} />}
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={false}
-            initialNumToRender={3}
-            maxToRenderPerBatch={5}
-            windowSize={5}
-            removeClippedSubviews={true}
-            style={styles.sectionContent}
-          />
+          {formattedEvents.length > 0 ? (
+            <FlatList
+              data={formattedEvents}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => <EventCard item={item} onPress={handleEventPress} />}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+              style={styles.sectionContent}
+            />
+          ) : (
+            <View style={styles.noDataContainer}>
+              <Text style={styles.noDataText}>Henüz etkinlik bulunmuyor</Text>
+            </View>
+          )}
           
           <TouchableOpacity 
             style={styles.addButton}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Yeni etkinlik ekle"
             onPress={handleOpenEventModal}
           >
             <AddIcon width={16} height={16} color={COLORS.white} />
@@ -1226,28 +1335,34 @@ const DashboardScreen = () => {
               <Text style={styles.sectionTitle}>Beklenen Görevler</Text>
             </View>
             <View style={styles.sectionCountBadge}>
-              <Text style={styles.sectionCountText}>{pendingTasks.length}</Text>
+              <Text style={styles.sectionCountText}>{formattedTasks.length}</Text>
             </View>
           </View>
           
-          <FlatList
-            data={pendingTasks}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <TaskCard item={item} />}
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={false}
-            initialNumToRender={5}
-            maxToRenderPerBatch={5}
-            windowSize={5}
-            removeClippedSubviews={true}
-            style={styles.sectionContent}
-          />
+          {formattedTasks.length > 0 ? (
+            <FlatList
+              data={formattedTasks}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TaskCard 
+                  item={item}
+                  onToggleCompletion={(isCompleted) => 
+                    handleToggleTaskCompletion(item.id, isCompleted)
+                  }
+                />
+              )}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+              style={styles.sectionContent}
+            />
+          ) : (
+            <View style={styles.noDataContainer}>
+              <Text style={styles.noDataText}>Henüz görev bulunmuyor</Text>
+            </View>
+          )}
           
           <TouchableOpacity 
             style={styles.addButton}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Yeni görev ekle"
             onPress={handleOpenTaskModal}
           >
             <AddIcon width={16} height={16} color={COLORS.white} />
@@ -1269,7 +1384,7 @@ const DashboardScreen = () => {
       />
     </SafeAreaView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -1991,6 +2106,32 @@ const styles = StyleSheet.create({
     ...FONTS.body,
     color: COLORS.white,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    padding: SIZES.padding,
+    alignItems: 'center',
+  },
+  errorContainer: {
+    padding: SIZES.padding,
+    backgroundColor: '#ffebee',
+    borderRadius: SIZES.radius,
+    marginVertical: SIZES.margin,
+  },
+  errorText: {
+    color: '#c62828',
+    textAlign: 'center',
+  },
+  noDataContainer: {
+    padding: SIZES.padding * 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    borderRadius: SIZES.radius,
+    marginVertical: SIZES.margin,
+  },
+  noDataText: {
+    ...FONTS.body,
+    color: COLORS.textMedium,
   },
 });
 

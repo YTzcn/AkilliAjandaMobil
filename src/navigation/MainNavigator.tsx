@@ -15,7 +15,8 @@ export type MainDrawerParamList = {
 
 const Drawer = createDrawerNavigator<MainDrawerParamList>();
 
-const MainNavigator = () => {
+// Ana navigasyon bileşeni
+const MainNavigator: React.FC = () => {
   return (
     <Drawer.Navigator
       drawerContent={(props) => <DrawerContent {...props} />}
